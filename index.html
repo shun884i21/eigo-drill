@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#ff9ec4" />
 <link rel="manifest" href="manifest.json" />
 <link rel="apple-touch-icon" href="icon.svg" />
-<title>英語ドリル｜中1</title>
+<title>れいなの英語ドリル</title>
 <style>
   :root{
     --pink:#ff9ec4; --pink-d:#ff6fa5; --bg1:#fff5fa; --bg2:#fde9f3;
@@ -40,6 +40,22 @@
   .card{background:var(--card); border-radius:22px; padding:18px; box-shadow:0 6px 18px rgba(255,140,180,.18); margin-bottom:14px;}
   h1{font-size:20px; margin:4px 0 12px; text-align:center;}
   h2{font-size:16px; margin:0 0 10px;}
+
+  /* ===== かわいいタイトル ===== */
+  .apptitle{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin:2px 0 14px; text-align:center; animation:titlePop .6s ease-out;
+  }
+  .apptitle .grad{
+    font-size:30px; font-weight:900; line-height:1.15; letter-spacing:.5px;
+    background:linear-gradient(90deg,#ff6fa5,#9b7bff,#ff9ec4);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 2px 0 rgba(255,255,255,.85)) drop-shadow(0 3px 5px rgba(255,140,180,.35));
+  }
+  .apptitle .deco{font-size:30px; animation:wiggle 2.4s ease-in-out infinite;}
+  .apptitle .deco:last-child{animation-delay:.6s;}
+  @keyframes titlePop{0%{transform:scale(.6); opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1); opacity:1}}
+  @keyframes wiggle{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
 
   /* ===== home pet ===== */
   .pet-stage{text-align:center; padding:10px 0 4px;}
@@ -146,9 +162,10 @@
     /* ホーム：左にペット、右に練習＆達成度の2カラム */
     #view-home{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;}
     #view-home > .card{margin-bottom:0;}
-    #view-home > .card:nth-child(1){grid-column:1; grid-row:1 / span 2;}
-    #view-home > .card:nth-child(2){grid-column:2; grid-row:1;}
+    #view-home > .apptitle{grid-column:1 / -1; grid-row:1; margin:0;}
+    #view-home > .card:nth-child(2){grid-column:1; grid-row:2 / span 2;}
     #view-home > .card:nth-child(3){grid-column:2; grid-row:2;}
+    #view-home > .card:nth-child(4){grid-column:2; grid-row:3;}
     .pet-big{font-size:72px;}
 
     /* 4択クイズ：問題を左、選択肢を右の2カラム */
@@ -188,6 +205,11 @@
 
   <!-- ===== HOME ===== -->
   <section id="view-home">
+    <div class="apptitle">
+      <span class="deco">🌸</span>
+      <span class="grad">れいなの<br>英語ドリル</span>
+      <span class="deco">🐣</span>
+    </div>
     <div class="card">
       <div class="pet-stage">
         <div class="pet-big" id="petBig"><span class="pet-acc" id="petAcc"></span>🥚</div>

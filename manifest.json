@@ -1,6 +1,6 @@
 {
-  "name": "えいごドリル 中1",
-  "short_name": "えいごドリル",
+  "name": "れいなの英語ドリル",
+  "short_name": "れいな英語",
   "description": "中学1年生のための えいご れんしゅうアプリ",
   "start_url": "./index.html",
   "display": "standalone",
