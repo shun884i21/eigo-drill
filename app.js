@@ -475,8 +475,23 @@ function finishSession() {
 window.addEventListener("load", () => {
   refreshTop();
   renderHome();
-  // service worker（PWA）登録
+  // service worker（PWA）登録：新しいバージョンを見つけたら自動で最新に切り替える
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      reg.update();
+      // ページ表示中に更新が来ても、待たせず即適用
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (nw) nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) nw.postMessage("skip");
+        });
+      });
+    }).catch(() => {});
   }
 });
