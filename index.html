@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#ff9ec4" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>英語ドリル｜中1</title>
+<style>
+  :root{
+    --pink:#ff9ec4; --pink-d:#ff6fa5; --bg1:#fff5fa; --bg2:#fde9f3;
+    --ink:#4a3b46; --muted:#9b8a93; --good:#3ec98a; --bad:#ff7a7a;
+    --card:#ffffff; --ring:#ffd6e7; --coin:#ffcf5c;
+    --accent:#9b7bff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family:-apple-system,"Hiragino Maru Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+    color:var(--ink);
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    min-height:100dvh;
+    -webkit-user-select:none; user-select:none;
+  }
+  #app{max-width:480px; margin:0 auto; padding:14px 14px 90px; min-height:100dvh;}
+
+  /* ===== top bar ===== */
+  .topbar{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
+  .pet-mini{font-size:30px; line-height:1;}
+  .stats{display:flex; gap:6px; flex:1; flex-wrap:wrap;}
+  .chip{
+    background:var(--card); border-radius:999px; padding:5px 10px; font-size:13px;
+    font-weight:700; box-shadow:0 2px 0 var(--ring); display:flex; align-items:center; gap:4px;
+  }
+  .chip.coin{color:#b07d00;}
+  .chip.streak{color:#e8702a;}
+
+  /* ===== cards / sections ===== */
+  .card{background:var(--card); border-radius:22px; padding:18px; box-shadow:0 6px 18px rgba(255,140,180,.18); margin-bottom:14px;}
+  h1{font-size:20px; margin:4px 0 12px; text-align:center;}
+  h2{font-size:16px; margin:0 0 10px;}
+
+  /* ===== home pet ===== */
+  .pet-stage{text-align:center; padding:10px 0 4px;}
+  .pet-big{font-size:92px; line-height:1; display:inline-block; position:relative; transition:transform .2s;}
+  .pet-big.bounce{animation:bounce .5s;}
+  @keyframes bounce{0%{transform:scale(1)}30%{transform:scale(1.25) rotate(-6deg)}60%{transform:scale(.92)}100%{transform:scale(1)}}
+  .pet-acc{position:absolute; top:-6px; left:50%; transform:translateX(-50%); font-size:42px;}
+  .pet-name{font-weight:800; font-size:18px; margin-top:6px;}
+  .exp-wrap{margin:12px 6px 2px;}
+  .bar{height:14px; background:var(--ring); border-radius:999px; overflow:hidden;}
+  .bar > i{display:block; height:100%; background:linear-gradient(90deg,#ffd36e,#ff9ec4); width:0; transition:width .5s;}
+  .exp-label{font-size:12px; color:var(--muted); text-align:right; margin-top:4px;}
+
+  /* ===== buttons ===== */
+  .btn{
+    display:block; width:100%; border:none; border-radius:18px; padding:16px;
+    font-size:17px; font-weight:800; color:#fff; background:var(--pink-d);
+    box-shadow:0 4px 0 #e0568f; cursor:pointer; margin:10px 0; transition:transform .05s;
+    font-family:inherit;
+  }
+  .btn:active{transform:translateY(3px); box-shadow:0 1px 0 #e0568f;}
+  .btn.secondary{background:#fff; color:var(--pink-d); box-shadow:0 4px 0 var(--ring);}
+  .btn.violet{background:var(--accent); box-shadow:0 4px 0 #7a5be0;}
+  .btn.violet:active{box-shadow:0 1px 0 #7a5be0;}
+  .btn.small{padding:10px; font-size:14px; width:auto; display:inline-block;}
+  .btn[disabled]{opacity:.5;}
+
+  /* ===== unit progress ===== */
+  .unit-row{display:flex; align-items:center; gap:10px; margin:8px 0;}
+  .unit-row .bar{flex:1;}
+  .unit-pct{font-size:12px; color:var(--muted); width:38px; text-align:right;}
+
+  /* ===== quiz ===== */
+  .q-prompt{font-size:15px; color:var(--muted); text-align:center; margin-bottom:4px;}
+  .q-word{font-size:30px; font-weight:800; text-align:center; margin:6px 0 14px;}
+  .speak{font-size:22px; background:none; border:none; cursor:pointer; vertical-align:middle;}
+  .choices{display:grid; gap:10px;}
+  .choice{
+    border:none; border-radius:16px; padding:16px; font-size:18px; font-weight:700;
+    background:#fff; color:var(--ink); box-shadow:0 3px 0 var(--ring); cursor:pointer; font-family:inherit;
+    transition:transform .05s;
+  }
+  .choice:active{transform:translateY(2px);}
+  .choice.correct{background:var(--good); color:#fff; box-shadow:0 3px 0 #2ba36c;}
+  .choice.wrong{background:var(--bad); color:#fff; box-shadow:0 3px 0 #d65151;}
+  .choice[disabled]{cursor:default;}
+
+  /* ===== arrange ===== */
+  .ja-sentence{font-size:20px; font-weight:800; text-align:center; margin:4px 0 14px;}
+  .slot{
+    min-height:56px; border:2px dashed var(--ring); border-radius:14px; padding:8px;
+    display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; margin-bottom:14px;
+  }
+  .bank{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; min-height:48px;}
+  .tile{
+    border:none; border-radius:12px; padding:12px 14px; font-size:18px; font-weight:800;
+    background:#fff; color:var(--ink); box-shadow:0 3px 0 var(--ring); cursor:pointer; font-family:inherit;
+  }
+  .tile:active{transform:translateY(2px);}
+  .tile.placed{background:#ffeef6; color:var(--pink-d);}
+  .slot.ok{border-color:var(--good); background:#eafbf2;}
+  .slot.ng{border-color:var(--bad); background:#fff0f0;}
+
+  /* ===== feedback ===== */
+  .feedback{text-align:center; font-size:18px; font-weight:800; min-height:26px; margin:6px 0;}
+  .feedback.good{color:var(--good);}
+  .feedback.bad{color:var(--bad);}
+  .answer-line{text-align:center; font-size:16px; color:var(--muted); margin-bottom:8px;}
+
+  /* ===== praise pop ===== */
+  #pop{position:fixed; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; z-index:50;}
+  .praise{font-size:40px; font-weight:900; color:var(--pink-d); text-shadow:0 2px 0 #fff; opacity:0;}
+  .praise.show{animation:praise 1s ease-out;}
+  @keyframes praise{0%{opacity:0; transform:scale(.4)}20%{opacity:1; transform:scale(1.15)}70%{opacity:1; transform:scale(1)}100%{opacity:0; transform:translateY(-40px) scale(1)}}
+  .confetti{position:fixed; top:-20px; font-size:22px; z-index:49; pointer-events:none;}
+
+  /* ===== bottom nav ===== */
+  nav{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:10px; width:calc(100% - 24px); max-width:456px;
+    background:#fff; border-radius:22px; box-shadow:0 6px 18px rgba(255,140,180,.28);
+    display:flex; padding:6px; gap:4px; z-index:30;
+  }
+  nav button{
+    flex:1; border:none; background:none; padding:8px 4px; border-radius:16px; cursor:pointer;
+    font-size:11px; font-weight:700; color:var(--muted); font-family:inherit;
+  }
+  nav button .ic{font-size:22px; display:block;}
+  nav button.active{background:var(--bg2); color:var(--pink-d);}
+
+  .hidden{display:none !important;}
+  .center{text-align:center;}
+  .muted{color:var(--muted); font-size:13px;}
+
+  /* shop */
+  .shop-item{display:flex; align-items:center; gap:12px; padding:10px; border-radius:14px; background:#fff; box-shadow:0 2px 0 var(--ring); margin:8px 0;}
+  .shop-emoji{font-size:30px;}
+  .shop-info{flex:1;}
+  .shop-info b{display:block;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- top bar -->
+  <div class="topbar">
+    <span class="pet-mini" id="petMini">🥚</span>
+    <div class="stats">
+      <span class="chip streak">🔥<span id="streakN">0</span>日</span>
+      <span class="chip coin">🪙<span id="coinN">0</span></span>
+      <span class="chip">⭐<span id="lvN">1</span></span>
+    </div>
+  </div>
+
+  <!-- ===== HOME ===== -->
+  <section id="view-home">
+    <div class="card">
+      <div class="pet-stage">
+        <div class="pet-big" id="petBig"><span class="pet-acc" id="petAcc"></span>🥚</div>
+        <div class="pet-name" id="petName">たまご</div>
+      </div>
+      <div class="exp-wrap">
+        <div class="bar"><i id="expBar"></i></div>
+        <div class="exp-label"><span id="expNow">0</span>/<span id="expMax">50</span> ごはん</div>
+      </div>
+      <p class="center muted" id="todayMsg">今日の問題を解いて、ペットにごはんをあげよう！</p>
+    </div>
+
+    <div class="card">
+      <h2>今日の練習</h2>
+      <button class="btn" onclick="startQuiz()">📖 単語４択クイズ</button>
+      <button class="btn violet" onclick="startArrange()">🧩 英文ならべかえ</button>
+      <button class="btn secondary" id="reviewBtn" onclick="startReview()">🔁 間違えた問題を復習</button>
+    </div>
+
+    <div class="card">
+      <h2>達成度</h2>
+      <div id="unitProgress"></div>
+    </div>
+  </section>
+
+  <!-- ===== QUIZ (4択) ===== -->
+  <section id="view-quiz" class="hidden">
+    <div class="card">
+      <div class="center muted" id="quizCount"></div>
+      <div class="q-prompt" id="quizPrompt">この意味の英単語は？</div>
+      <div class="q-word"><span id="quizWord"></span> <button class="speak" id="quizSpeak" onclick="speakCurrent()">🔊</button></div>
+      <div class="choices" id="quizChoices"></div>
+      <div class="feedback" id="quizFb"></div>
+      <div class="answer-line hidden" id="quizAns"></div>
+      <button class="btn hidden" id="quizNext" onclick="nextQuiz()">つぎへ →</button>
+    </div>
+  </section>
+
+  <!-- ===== ARRANGE ===== -->
+  <section id="view-arrange" class="hidden">
+    <div class="card">
+      <div class="center muted" id="arrCount"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span class="muted">日本語を見て英文を作ろう</span>
+        <label class="muted" style="font-size:12px;"><input type="checkbox" id="hardMode" onchange="renderArrange()"> 難しい</label>
+      </div>
+      <div class="ja-sentence" id="arrJa"></div>
+      <div class="slot" id="arrSlot"></div>
+      <div class="bank" id="arrBank"></div>
+      <div class="feedback" id="arrFb"></div>
+      <div class="answer-line hidden" id="arrAns"></div>
+      <button class="btn" id="arrCheck" onclick="checkArrange()">答え合わせ</button>
+      <button class="btn secondary small" onclick="clearSlot()" style="display:block;margin:0 auto;">↩ クリア</button>
+      <button class="btn hidden" id="arrNext" onclick="nextArrange()">つぎへ →</button>
+    </div>
+  </section>
+
+  <!-- ===== SHOP / きせかえ ===== -->
+  <section id="view-shop" class="hidden">
+    <div class="card">
+      <h2>着せ替えショップ 🪙<span id="shopCoin">0</span></h2>
+      <p class="muted">コインを使ってペットを可愛くしよう！</p>
+      <div id="shopList"></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- praise overlay -->
+<div id="pop"><div class="praise" id="praiseText"></div></div>
+
+<!-- bottom nav -->
+<nav>
+  <button id="nav-home" class="active" onclick="show('home')"><span class="ic">🏠</span>ホーム</button>
+  <button id="nav-quiz" onclick="startQuiz()"><span class="ic">📖</span>単語</button>
+  <button id="nav-arrange" onclick="startArrange()"><span class="ic">🧩</span>並べ替え</button>
+  <button id="nav-shop" onclick="show('shop')"><span class="ic">🎀</span>着せ替え</button>
+</nav>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
