@@ -4,7 +4,7 @@
   "description": "中学1年生のための えいご れんしゅうアプリ",
   "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#fff5fa",
   "theme_color": "#ff9ec4",
   "icons": [

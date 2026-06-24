@@ -270,8 +270,17 @@ function renderQuiz() {
   $("quizWord").textContent = jaToEn ? quizCur.ja : quizCur.en;
   $("quizSpeak").style.display = jaToEn ? "none" : "inline";
 
-  const pool = allWords();
-  const wrongs = shuffle(pool.filter((w) => w.en !== quizCur.en)).slice(0, 3);
+  // 選択肢：表示テキスト（日→英なら英、英→日なら日）が重複しないように集める
+  const disp = (w) => (jaToEn ? w.en : w.ja);
+  const correctDisp = disp(quizCur);
+  const seen = new Set([correctDisp]);
+  const wrongs = [];
+  for (const w of shuffle(allWords())) {
+    const d = disp(w);
+    if (seen.has(d)) continue;
+    seen.add(d); wrongs.push(w);
+    if (wrongs.length === 3) break;
+  }
   const opts = shuffle([quizCur].concat(wrongs));
   const box = $("quizChoices"); box.innerHTML = "";
   opts.forEach((o) => {
