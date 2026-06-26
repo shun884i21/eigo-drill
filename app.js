@@ -3,12 +3,13 @@
 // ---------- セーブデータ ----------
 const SAVE_KEY = "eigo-drill-v1";
 const defaultState = {
+  ver: 2,            // セーブ形式バージョン（移行判定用）
   exp: 0,            // ペットのごはん（経験値）
   coins: 0,
   level: 1,
   streak: 0,
   lastPlay: null,    // "YYYY-MM-DD"
-  petStage: 0,
+  maxStage: 0,       // これまで到達した最高段階（後戻りさせない用）
   acc: "",           // 装備中アクセサリー絵文字
   owned: [],         // 購入済みアイテムid
   correctWords: {},  // "u1:I" -> true （一度でも正解した単語）
@@ -20,7 +21,17 @@ let S = load();
 function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) return Object.assign({}, defaultState, JSON.parse(raw));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const s = Object.assign({}, defaultState, parsed);
+      // 旧データ（verなし）→ ゆっくり成長に合わせて経験値を換算し、段階が戻らないように
+      if (!parsed.ver) {
+        s.exp = Math.round((s.exp || 0) * 2);
+        s.ver = 2;
+        localStorage.setItem(SAVE_KEY, JSON.stringify(s)); // 一度だけ移行を保存
+      }
+      return s;
+    }
   } catch (e) {}
   return JSON.parse(JSON.stringify(defaultState));
 }
@@ -28,11 +39,13 @@ function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }
 
 // ---------- ペットの成長 ----------
 const PET_STAGES = [
-  { emoji: "🥚", name: "たまご",   need: 0 },
-  { emoji: "🐣", name: "ヒヨコ",   need: 50 },
-  { emoji: "🐤", name: "ぴよすけ", need: 150 },
-  { emoji: "🐥", name: "こっこ",   need: 300 },
-  { emoji: "🐔", name: "クッキー", need: 500 },
+  { emoji: "🥚", name: "たまご",     need: 0 },
+  { emoji: "🐣", name: "ヒヨコ",     need: 120 },
+  { emoji: "🐤", name: "ぴよすけ",   need: 320 },
+  { emoji: "🐥", name: "こっこ",     need: 600 },
+  { emoji: "🐔", name: "クッキー",   need: 1000 },
+  { emoji: "🦚", name: "ゴージャス", need: 1500 },
+  { emoji: "🦄", name: "ゆめみ",     need: 2200 },
 ];
 function stageFor(exp) {
   let s = 0;
@@ -42,14 +55,27 @@ function stageFor(exp) {
 function nextNeed(stage) {
   return stage + 1 < PET_STAGES.length ? PET_STAGES[stage + 1].need : PET_STAGES[stage].need;
 }
+// 表示用の段階：経験値から計算した段階と、これまでの最高段階の大きい方（後戻りなし）
+function dispStage() { return Math.max(stageFor(S.exp), S.maxStage || 0); }
 
 // ---------- ショップ ----------
+// 価格は安い順。コインは少しずつ貯まるので、徐々に集めて着せ替えできる。
 const SHOP = [
-  { id: "ribbon", emoji: "🎀", name: "リボン", price: 30 },
-  { id: "crown",  emoji: "👑", name: "王冠",   price: 60 },
-  { id: "hat",    emoji: "🎩", name: "帽子",   price: 50 },
-  { id: "star",   emoji: "⭐", name: "星",     price: 20 },
-  { id: "flower", emoji: "🌸", name: "お花",   price: 40 },
+  { id: "star",       emoji: "⭐", name: "星",         price: 20 },
+  { id: "heart",      emoji: "❤️", name: "ハート",     price: 25 },
+  { id: "sparkles",   emoji: "✨", name: "きらきら",   price: 25 },
+  { id: "strawberry", emoji: "🍓", name: "いちご",     price: 30 },
+  { id: "note",       emoji: "🎵", name: "おんぷ",     price: 30 },
+  { id: "ribbon",     emoji: "🎀", name: "リボン",     price: 35 },
+  { id: "cap",        emoji: "🧢", name: "キャップ",   price: 40 },
+  { id: "balloon",    emoji: "🎈", name: "ふうせん",   price: 40 },
+  { id: "butterfly",  emoji: "🦋", name: "ちょうちょ", price: 45 },
+  { id: "flower",     emoji: "🌸", name: "お花",       price: 50 },
+  { id: "glasses",    emoji: "🕶️", name: "サングラス", price: 55 },
+  { id: "hat",        emoji: "🎩", name: "帽子",       price: 65 },
+  { id: "crown",      emoji: "👑", name: "王冠",       price: 80 },
+  { id: "rainbow",    emoji: "🌈", name: "にじ",       price: 100 },
+  { id: "diamond",    emoji: "💎", name: "ダイヤ",     price: 130 },
 ];
 
 // ---------- 共通UI ----------
@@ -68,7 +94,7 @@ function refreshTop() {
   $("streakN").textContent = S.streak;
   $("coinN").textContent = S.coins;
   $("lvN").textContent = S.level;
-  $("petMini").textContent = PET_STAGES[stageFor(S.exp)].emoji;
+  $("petMini").textContent = PET_STAGES[dispStage()].emoji;
 }
 
 // ---------- 音声よみあげ ----------
@@ -130,13 +156,14 @@ function confetti() {
 
 // ---------- ほうび付与 ----------
 function reward(exp, coins) {
-  const beforeStage = stageFor(S.exp);
+  const beforeStage = dispStage();
   S.exp += exp;
   S.coins += coins;
-  S.level = stageFor(S.exp) + 1;
-  const afterStage = stageFor(S.exp);
+  const now = stageFor(S.exp);
+  if (now > (S.maxStage || 0)) S.maxStage = now;
+  S.level = dispStage() + 1;
   save(); refreshTop();
-  if (afterStage > beforeStage) setTimeout(() => evolveAnim(afterStage), 400);
+  if (dispStage() > beforeStage) setTimeout(() => evolveAnim(dispStage()), 400);
 }
 function evolveAnim(stage) {
   praise();
@@ -163,12 +190,12 @@ function updateStreak() {
 // ---------- ホーム描画 ----------
 function renderHome() {
   refreshTop();
-  const stage = stageFor(S.exp);
+  const stage = dispStage();
   $("petBig").innerHTML = `<span class="pet-acc" id="petAcc">${S.acc || ""}</span>${PET_STAGES[stage].emoji}`;
   $("petName").textContent = PET_STAGES[stage].name;
   const need = nextNeed(stage);
   const prev = PET_STAGES[stage].need;
-  const pct = need > prev ? Math.min(100, Math.round(((S.exp - prev) / (need - prev)) * 100)) : 100;
+  const pct = need > prev ? Math.max(0, Math.min(100, Math.round(((S.exp - prev) / (need - prev)) * 100))) : 100;
   $("expBar").style.width = pct + "%";
   $("expNow").textContent = S.exp;
   $("expMax").textContent = need;
@@ -307,7 +334,7 @@ function answerQuiz(btn, opt) {
     beep(true); praise(); speak(quizCur.en);
     S.correctWords[quizCur.uid + ":" + quizCur.en] = true;
     removeFromWrong("word", quizCur.uid, quizCur.en);
-    reward(10, 2);
+    reward(10, 1);
   } else {
     btn.classList.add("wrong");
     $("quizFb").textContent = "おしい！もう一度見てみよう"; $("quizFb").className = "feedback bad";
@@ -402,7 +429,7 @@ function checkArrange() {
     beep(true); praise(); speak(arrCur.tokens.join(" "));
     S.correctSents[arrCur.uid + ":" + arrCur.idx] = true;
     removeFromWrong("sent", arrCur.uid, arrCur.idx);
-    reward(15, 3);
+    reward(15, 2);
     $("arrCheck").classList.add("hidden");
     $("arrNext").classList.remove("hidden");
     $("arrNext").textContent = (arrI + 1 < arrList.length) ? "次へ →" : "終わる 🏠";
