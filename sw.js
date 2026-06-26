@@ -1,9 +1,10 @@
 // オフラインキャッシュ（PWA）：オンライン時は最新を取得し、オフライン時のみキャッシュを使う
-const CACHE = "eigo-drill-v7";
+const CACHE = "eigo-drill-v8";
 const ASSETS = [
   "./index.html",
   "./app.js",
   "./data.js",
+  "./japan-map.js",
   "./manifest.json",
   "./icon.svg",
 ];

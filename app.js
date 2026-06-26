@@ -54,8 +54,25 @@ function load() {
 function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }
 
 // ---------- 日本一周の旅：計算ヘルパー ----------
-// spots に累積距離 km を付与（先頭=0、以降は segKm ずつ）。ゴール(亀山に帰宅)も用意。
-const SPOTS = JOURNEY.spots.map((s, i) => Object.assign({}, s, { km: i * JOURNEY.segKm }));
+// 沖縄インセット枠（本土マップ座標での位置・大きさ）。九州の南の空きスペースに置く。
+const OKI_BOX = { x: 1.5, y: 80, w: 17, h: 21, pad: 1.6 };
+function okiTransform() {
+  const ov = ((typeof OKINAWA_VIEWBOX !== "undefined") ? OKINAWA_VIEWBOX : "0 0 30 42").split(" ");
+  const ow = +ov[2], oh = +ov[3];
+  const iw = OKI_BOX.w - OKI_BOX.pad * 2, ih = OKI_BOX.h - OKI_BOX.pad * 2;
+  const sc = Math.min(iw / ow, ih / oh);
+  return { sc, offX: OKI_BOX.x + OKI_BOX.pad + (iw - ow * sc) / 2, offY: OKI_BOX.y + OKI_BOX.pad + (ih - oh * sc) / 2 };
+}
+function okiToMain(ox, oy) { const t = okiTransform(); return [+(t.offX + ox * t.sc).toFixed(2), +(t.offY + oy * t.sc).toFixed(2)]; }
+
+// spots に累積距離 km を付与（先頭=0、以降は segKm ずつ）。
+// 地図座標(x,y)は japan-map.js（本物の日本地図＝県庁所在地）を使う。沖縄はインセット枠内に配置。
+const SPOTS = JOURNEY.spots.map((s, i) => {
+  let xy;
+  if (s.pref === "沖縄" && typeof OKINAWA_NAHA !== "undefined") xy = okiToMain(OKINAWA_NAHA[0], OKINAWA_NAHA[1]);
+  else xy = (typeof PREF_XY !== "undefined" && PREF_XY[s.pref]) || [s.x, s.y];
+  return Object.assign({}, s, { x: xy[0], y: xy[1], km: i * JOURNEY.segKm });
+});
 const GOAL_KM = SPOTS.length * JOURNEY.segKm;        // 沖縄のあと、三重(亀山)に帰ってくる距離
 function reachedIndexFor(km) {
   let idx = 0;
@@ -233,6 +250,54 @@ function updateStreak() {
   save();
 }
 
+// 地図のviewBox（japan-map.js があれば本物の日本地図のものを使う）
+const MAP_VIEWBOX = (typeof JAPAN_VIEWBOX !== "undefined") ? JAPAN_VIEWBOX : "0 0 86 100";
+// 海＋陸地（本物の日本地図のSVGパス）。出典：地球地図日本(国土地理院)。沖縄はインセット枠で表示。
+function japanLand() {
+  const dims = MAP_VIEWBOX.split(" ");
+  const vw = dims[2], vh = dims[3];
+  const land = (typeof JAPAN_PATH !== "undefined")
+    ? `<path d="${JAPAN_PATH}" fill="#d9efc8" stroke="#bfe0a6" stroke-width="0.35" stroke-linejoin="round"/>`
+    : "";
+  let inset = "";
+  if (typeof OKINAWA_PATH !== "undefined") {
+    const t = okiTransform();
+    const b = OKI_BOX;
+    inset = `
+      <rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="2" fill="#eaf4fb" stroke="#9fb8cf" stroke-width="0.5" stroke-dasharray="1.5 1"/>
+      <clipPath id="okiClip"><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="2"/></clipPath>
+      <g clip-path="url(#okiClip)"><path transform="translate(${t.offX} ${t.offY}) scale(${t.sc})" d="${OKINAWA_PATH}" fill="#d9efc8" stroke="#bfe0a6" stroke-width="${(0.35 / t.sc).toFixed(2)}" stroke-linejoin="round"/></g>
+      <text x="${b.x + b.w - 1}" y="${b.y + b.h - 1.5}" font-size="2.8" text-anchor="end" fill="#7a8a98">沖縄</text>`;
+  }
+  return `<rect x="0" y="0" width="${vw}" height="${vh}" rx="6" fill="#eaf4fb"/>${land}${inset}`;
+}
+
+// ---------- 自転車に乗る人の顔写真（※端末内だけに保存。GitHub等には一切アップしない） ----------
+const FACE_KEY = "eigo-drill-face";
+function getFace() { try { return localStorage.getItem(FACE_KEY) || ""; } catch (e) { return ""; } }
+// ファイルを選んだら、正方形に切り抜き＆小さく縮小して localStorage に保存
+function pickFace(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const img = new Image();
+  const url = URL.createObjectURL(f);
+  img.onload = function () {
+    const SZ = 140, c = document.createElement("canvas");
+    c.width = SZ; c.height = SZ;
+    const ctx = c.getContext("2d");
+    const m = Math.min(img.width, img.height);       // 中央を正方形にトリミング
+    ctx.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, SZ, SZ);
+    URL.revokeObjectURL(url);
+    try { localStorage.setItem(FACE_KEY, c.toDataURL("image/jpeg", 0.82)); }
+    catch (e) { alert("写真の保存に失敗したよ。もう少し小さい写真でためしてね。"); return; }
+    input.value = "";
+    renderHome();
+  };
+  img.onerror = function () { URL.revokeObjectURL(url); alert("写真をよみこめなかったよ。"); };
+  img.src = url;
+}
+function clearFace() { try { localStorage.removeItem(FACE_KEY); } catch (e) {} renderHome(); }
+
 // ---------- 地図SVGを組み立てる ----------
 function buildMapSVG() {
   const reached = reachedIndexFor(S.km);
@@ -251,13 +316,22 @@ function buildMapSVG() {
   // 県の点
   const dots = SPOTS.map((s) => {
     const done = S.visited[s.pref];
-    return `<circle cx="${s.x}" cy="${s.y}" r="${done ? 1.9 : 1.4}" fill="${done ? "#ff6fa5" : "#ffd6e7"}" stroke="#fff" stroke-width="0.4"/>`;
+    return `<circle cx="${s.x}" cy="${s.y}" r="${done ? 1.5 : 1.1}" fill="${done ? "#ff5f9e" : "#ffd6e7"}" stroke="#fff" stroke-width="0.35"/>`;
   }).join("");
-  return `<svg viewBox="0 0 86 100" class="jp-map" xmlns="http://www.w3.org/2000/svg">
-    <polyline points="${linePts}" fill="none" stroke="#ffe3ef" stroke-width="1" stroke-linejoin="round" stroke-dasharray="2 1.5"/>
-    <polyline points="${donePts}" fill="none" stroke="#ff9ec4" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+  // 自転車に乗る人：顔写真があれば丸く切り抜いて表示、なければ自転車の絵文字
+  const face = getFace();
+  const rider = face
+    ? `<clipPath id="faceClip"><circle cx="${bx}" cy="${by - 3}" r="3"/></clipPath>
+       <circle cx="${bx}" cy="${by - 3}" r="3.4" fill="#fff" stroke="#ff5f9e" stroke-width="0.6"/>
+       <image href="${face}" x="${bx - 3}" y="${by - 6}" width="6" height="6" clip-path="url(#faceClip)" preserveAspectRatio="xMidYMid slice"/>
+       <text x="${bx}" y="${by + 3.2}" font-size="4" text-anchor="middle">🚲</text>`
+    : `<text x="${bx}" y="${by + 1.6}" font-size="4.6" text-anchor="middle">🚲</text>`;
+  return `<svg viewBox="${MAP_VIEWBOX}" class="jp-map" xmlns="http://www.w3.org/2000/svg">
+    ${japanLand()}
+    <polyline points="${linePts}" fill="none" stroke="#ff8fb8" stroke-width="0.7" stroke-linejoin="round" stroke-dasharray="1.6 1.4" opacity="0.75"/>
+    <polyline points="${donePts}" fill="none" stroke="#ff5f9e" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}
-    <text x="${bx}" y="${by + 1.8}" font-size="5.5" text-anchor="middle">🚲</text>
+    ${rider}
   </svg>`;
 }
 
@@ -279,8 +353,17 @@ function renderHome() {
     $("nextSpot").textContent = "日本一周たっせい！🎌";
   }
   const visitedCount = Object.keys(S.visited).length;
+  const allDone = visitedCount >= SPOTS.length;
+  if ($("conquerBadge")) {
+    $("conquerBadge").textContent = allDone ? `🎌 ${visitedCount}県 全制覇！` : `🏅 ${visitedCount}県 制覇！`;
+    $("conquerBadge").classList.toggle("all", allDone);
+  }
   $("journeyBar").style.width = journeyPct() + "%";
   $("journeyLabel").textContent = `${visitedCount} / ${SPOTS.length} 県　（${Math.round(S.km)}km / ${GOAL_KM}km）`;
+
+  // 顔写真ボタン（写真があれば「かえる／けす」）
+  if ($("faceBtnLabel")) $("faceBtnLabel").textContent = getFace() ? "顔写真をかえる" : "顔写真をえらぶ";
+  if ($("faceClearBtn")) $("faceClearBtn").classList.toggle("hidden", !getFace());
 
   // 復習ボタン（きょうの復習＝期限ぶん／にがて練習＝まだ覚えきれていない全部）
   const dueN = dueEntries().length, weakN = weakEntries().length;

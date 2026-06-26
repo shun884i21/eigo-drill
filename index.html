@@ -157,6 +157,12 @@
   .jp-map{width:100%; height:auto; display:block;}
   .cur-spot{font-weight:800; font-size:16px; margin-top:6px;}
   .next-spot{font-size:13px; color:var(--pink-d); font-weight:700; margin-top:2px;}
+  .face-row{display:flex; gap:8px; justify-content:center; align-items:center; margin-top:10px;}
+  .face-row .btn{margin:0;}
+  .conquer{display:inline-block; background:linear-gradient(90deg,#ffd36e,#ff9ec4); color:#7a3b1e;
+    font-weight:900; font-size:18px; padding:7px 18px; border-radius:999px; box-shadow:0 3px 0 var(--ring);
+    margin:10px auto 2px; letter-spacing:.5px;}
+  .conquer.all{background:linear-gradient(90deg,#ffd36e,#9b7bff,#ff9ec4); color:#fff; animation:wiggle 2s ease-in-out infinite;}
 
   /* ===== ずかん ===== */
   .zukan-search{
@@ -242,15 +248,23 @@
       <span class="deco">🐣</span>
     </div>
     <div class="card">
-      <h2 class="center">🚲 じてんしゃで日本一周</h2>
+      <h2 class="center">🚲 自転車で日本一周にチャレンジしよう！</h2>
       <div class="map-box" id="mapBox"></div>
       <div class="center cur-spot" id="curSpot">🏯 今いるところ：三重県（亀山）</div>
       <div class="center next-spot" id="nextSpot">つぎの県まで あと…</div>
+      <div class="center"><span class="conquer" id="conquerBadge">🏅 1県 制覇！</span></div>
       <div class="exp-wrap">
         <div class="bar"><i id="journeyBar"></i></div>
         <div class="exp-label"><span id="journeyLabel">0 / 47 県</span></div>
       </div>
       <p class="center muted">問題を解くと進むよ。（1問せいかい＝2km）</p>
+      <div class="center face-row">
+        <label class="btn secondary small" for="faceInput">📷 <span id="faceBtnLabel">顔写真をえらぶ</span></label>
+        <button class="btn secondary small hidden" id="faceClearBtn" onclick="clearFace()">けす</button>
+        <input type="file" id="faceInput" accept="image/*" onchange="pickFace(this)" hidden>
+      </div>
+      <p class="center muted" style="font-size:10px; opacity:.7; margin:4px 0 0;">写真はこの端末の中だけに保存され、公開されません</p>
+      <p class="center muted" style="font-size:10px; opacity:.7; margin:2px 0 0;">地図データ：地球地図日本（国土地理院）</p>
     </div>
 
     <div class="card">
@@ -335,6 +349,7 @@
 </nav>
 
 <script src="data.js"></script>
+<script src="japan-map.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
