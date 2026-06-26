@@ -3,18 +3,19 @@
 // ---------- セーブデータ ----------
 const SAVE_KEY = "eigo-drill-v1";
 const defaultState = {
-  ver: 2,            // セーブ形式バージョン（移行判定用）
-  exp: 0,            // ペットのごはん（経験値）
+  ver: 4,            // セーブ形式バージョン（移行判定用）
+  exp: 0,            // 累計の経験値（内部用）
   coins: 0,
   level: 1,
   streak: 0,
   lastPlay: null,    // "YYYY-MM-DD"
-  maxStage: 0,       // これまで到達した最高段階（後戻りさせない用）
-  acc: "",           // 装備中アクセサリー絵文字
-  owned: [],         // 購入済みアイテムid
+  km: 0,             // 旅で進んだ距離
+  visited: {},       // "三重" -> true （到着した県）
+  reached: 0,        // これまで到達した spots のインデックス
+  goods: {},         // "三重#0" -> true （買ったご当地名物）
   correctWords: {},  // "u1:I" -> true （一度でも正解した単語）
   correctSents: {},  // "u1:0" -> true
-  wrongPool: [],     // 復習用 { type, uid, idx }
+  srs: {},           // 忘却曲線の復習カード "word:u1:I" -> { box, due }
 };
 let S = load();
 
@@ -24,77 +25,79 @@ function load() {
     if (raw) {
       const parsed = JSON.parse(raw);
       const s = Object.assign({}, defaultState, parsed);
-      // 旧データ（verなし）→ ゆっくり成長に合わせて経験値を換算し、段階が戻らないように
-      if (!parsed.ver) {
-        s.exp = Math.round((s.exp || 0) * 2);
-        s.ver = 2;
+      // 旅システムへ移行：距離は0からスタート、コインはそのまま引き継ぐ
+      if (!parsed.ver || parsed.ver < 3) {
+        s.km = 0;
+        s.reached = 0;
+        s.visited = { "三重": true };   // 出発の地は最初から到着ずみ
+        delete s.maxStage; delete s.acc; delete s.owned;  // 旧ペット/ショップの名残を掃除
+      }
+      // SRS（忘却曲線）へ移行：旧 wrongPool を復習カードに変換（box0＝今日復習）
+      if (!parsed.ver || parsed.ver < 4) {
+        const srs = Object.assign({}, parsed.srs || {});
+        (parsed.wrongPool || []).forEach((w) => { srs["" + w.type + ":" + w.uid + ":" + w.key] = { box: 0, due: 0 }; });
+        s.srs = srs;
+        delete s.wrongPool;
+        s.ver = 4;
         localStorage.setItem(SAVE_KEY, JSON.stringify(s)); // 一度だけ移行を保存
       }
+      if (!s.visited || !s.visited["三重"]) { s.visited = Object.assign({ "三重": true }, s.visited || {}); }
+      s.goods = Object.assign({}, parsed.goods || {});  // 既定の共有参照を避ける
+      s.srs = Object.assign({}, s.srs || {});
       return s;
     }
   } catch (e) {}
-  return JSON.parse(JSON.stringify(defaultState));
+  const fresh = JSON.parse(JSON.stringify(defaultState));
+  fresh.visited = { "三重": true };
+  return fresh;
 }
 function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }
 
-// ---------- ペットの成長 ----------
-const PET_STAGES = [
-  { emoji: "🥚", name: "たまご",     need: 0 },
-  { emoji: "🐣", name: "ヒヨコ",     need: 120 },
-  { emoji: "🐤", name: "ぴよすけ",   need: 320 },
-  { emoji: "🐥", name: "こっこ",     need: 600 },
-  { emoji: "🐔", name: "クッキー",   need: 1000 },
-  { emoji: "🦚", name: "ゴージャス", need: 1500 },
-  { emoji: "🦄", name: "ゆめみ",     need: 2200 },
-];
-function stageFor(exp) {
-  let s = 0;
-  for (let i = 0; i < PET_STAGES.length; i++) if (exp >= PET_STAGES[i].need) s = i;
-  return s;
+// ---------- 日本一周の旅：計算ヘルパー ----------
+// spots に累積距離 km を付与（先頭=0、以降は segKm ずつ）。ゴール(亀山に帰宅)も用意。
+const SPOTS = JOURNEY.spots.map((s, i) => Object.assign({}, s, { km: i * JOURNEY.segKm }));
+const GOAL_KM = SPOTS.length * JOURNEY.segKm;        // 沖縄のあと、三重(亀山)に帰ってくる距離
+function reachedIndexFor(km) {
+  let idx = 0;
+  for (let i = 0; i < SPOTS.length; i++) if (km >= SPOTS[i].km) idx = i;
+  return idx;
 }
-function nextNeed(stage) {
-  return stage + 1 < PET_STAGES.length ? PET_STAGES[stage + 1].need : PET_STAGES[stage].need;
+function nextSpot() {
+  const idx = reachedIndexFor(S.km);
+  return idx + 1 < SPOTS.length ? SPOTS[idx + 1] : null;  // null ならゴールへ向かっている
 }
-// 表示用の段階：経験値から計算した段階と、これまでの最高段階の大きい方（後戻りなし）
-function dispStage() { return Math.max(stageFor(S.exp), S.maxStage || 0); }
+// 旅の達成率（0〜100）
+function journeyPct() { return Math.max(0, Math.min(100, Math.round((S.km / GOAL_KM) * 100))); }
 
-// ---------- ショップ ----------
-// 価格は安い順。コインは少しずつ貯まるので、徐々に集めて着せ替えできる。
-const SHOP = [
-  { id: "star",       emoji: "⭐", name: "星",         price: 20 },
-  { id: "heart",      emoji: "❤️", name: "ハート",     price: 25 },
-  { id: "sparkles",   emoji: "✨", name: "きらきら",   price: 25 },
-  { id: "strawberry", emoji: "🍓", name: "いちご",     price: 30 },
-  { id: "note",       emoji: "🎵", name: "おんぷ",     price: 30 },
-  { id: "ribbon",     emoji: "🎀", name: "リボン",     price: 35 },
-  { id: "cap",        emoji: "🧢", name: "キャップ",   price: 40 },
-  { id: "balloon",    emoji: "🎈", name: "ふうせん",   price: 40 },
-  { id: "butterfly",  emoji: "🦋", name: "ちょうちょ", price: 45 },
-  { id: "flower",     emoji: "🌸", name: "お花",       price: 50 },
-  { id: "glasses",    emoji: "🕶️", name: "サングラス", price: 55 },
-  { id: "hat",        emoji: "🎩", name: "帽子",       price: 65 },
-  { id: "crown",      emoji: "👑", name: "王冠",       price: 80 },
-  { id: "rainbow",    emoji: "🌈", name: "にじ",       price: 100 },
-  { id: "diamond",    emoji: "💎", name: "ダイヤ",     price: 130 },
-];
+// ご当地名物：全データに id（県名#番号）を付けて1つのリストに、県名→名物の辞書も作る
+const GOODS = [];
+const GOODS_BY_PREF = {};
+SPOTS.forEach((sp) => {
+  const list = (typeof PREF_GOODS !== "undefined" && PREF_GOODS[sp.pref]) || [];
+  GOODS_BY_PREF[sp.pref] = list.map((g, i) => {
+    const item = Object.assign({ id: sp.pref + "#" + i, pref: sp.pref }, g);
+    GOODS.push(item);
+    return item;
+  });
+});
+function goodsOwnedCount() { return GOODS.filter((g) => S.goods[g.id]).length; }
 
 // ---------- 共通UI ----------
 const $ = (id) => document.getElementById(id);
-const views = ["home", "quiz", "arrange", "shop"];
+const views = ["home", "quiz", "arrange", "zukan"];
 function show(v) {
   views.forEach((x) => $("view-" + x).classList.toggle("hidden", x !== v));
-  ["home", "quiz", "arrange", "shop"].forEach((x) =>
+  views.forEach((x) =>
     $("nav-" + x) && $("nav-" + x).classList.toggle("active", x === v)
   );
   if (v === "home") renderHome();
-  if (v === "shop") renderShop();
+  if (v === "zukan") renderZukan();
 }
 
 function refreshTop() {
   $("streakN").textContent = S.streak;
   $("coinN").textContent = S.coins;
-  $("lvN").textContent = S.level;
-  $("petMini").textContent = PET_STAGES[dispStage()].emoji;
+  $("kmN").textContent = Math.round(S.km);
 }
 
 // ---------- 音声よみあげ ----------
@@ -155,21 +158,64 @@ function confetti() {
 }
 
 // ---------- ほうび付与 ----------
-function reward(exp, coins) {
-  const beforeStage = dispStage();
+// 正解すると 経験値・コイン・距離(km) がもらえる。距離が進むと県に到着することがある。
+function reward(exp, coins, km) {
   S.exp += exp;
   S.coins += coins;
-  const now = stageFor(S.exp);
-  if (now > (S.maxStage || 0)) S.maxStage = now;
-  S.level = dispStage() + 1;
+  S.km += (km || 0);
+  S.level = S.exp; // 互換のため保持（表示はしない）
   save(); refreshTop();
-  if (dispStage() > beforeStage) setTimeout(() => evolveAnim(dispStage()), 400);
+  checkArrival();
 }
-function evolveAnim(stage) {
+
+// 距離が伸びて新しい県に着いたら、紹介カードを出す
+function checkArrival() {
+  const nowIdx = reachedIndexFor(S.km);
+  if (nowIdx > (S.reached || 0)) {
+    // 一気に複数県を通過したら、いちばん先の県を到着として表示
+    for (let i = (S.reached || 0) + 1; i <= nowIdx; i++) {
+      S.visited[SPOTS[i].pref] = true;
+    }
+    S.reached = nowIdx;
+    S.coins += JOURNEY.arriveCoin;
+    save(); refreshTop();
+    setTimeout(() => showArrival(SPOTS[nowIdx]), 500);
+  } else if (S.km >= GOAL_KM && !S.lapDone) {
+    S.lapDone = true; save();
+    setTimeout(showGoal, 500);
+  }
+}
+
+// 到着ポップアップ
+function showArrival(spot) {
   praise();
-  const el = $("praiseText");
-  el.textContent = "進化！ " + PET_STAGES[stage].emoji;
-  el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+  $("arvEmoji").textContent = spot.emoji;
+  $("arvTitle").textContent = `${spot.full} にとうちゃく！`;
+  $("arvIntro").textContent = spot.intro;
+  $("arvCoin").textContent = `🪙 +${JOURNEY.arriveCoin} コインをもらった！`;
+  // 道の駅で復習（復習する問題があるときだけ）
+  const rest = $("arvRest");
+  const restN = dueEntries().length || weakEntries().length;
+  if (restN > 0) {
+    rest.classList.remove("hidden");
+    rest.textContent = `🚏 道の駅でひとやすみ（復習 ${restN}）`;
+  } else {
+    rest.classList.add("hidden");
+  }
+  $("arrivalModal").classList.remove("hidden");
+}
+function closeArrival() { $("arrivalModal").classList.add("hidden"); renderHome(); }
+function restFromArrival() { $("arrivalModal").classList.add("hidden"); startReview(); }
+
+// 日本一周ゴール！
+function showGoal() {
+  praise(); confetti(); confetti();
+  $("arvEmoji").textContent = "🎌";
+  $("arvTitle").textContent = "日本一周たっせい！🎉";
+  $("arvIntro").textContent = "ぐるっと47都道府県をまわって、亀山に帰ってきたよ。よくがんばったね！";
+  $("arvCoin").textContent = "";
+  $("arvRest").classList.add("hidden");
+  $("arrivalModal").classList.remove("hidden");
 }
 
 // ---------- ストリーク ----------
@@ -187,23 +233,61 @@ function updateStreak() {
   save();
 }
 
+// ---------- 地図SVGを組み立てる ----------
+function buildMapSVG() {
+  const reached = reachedIndexFor(S.km);
+  // ルート線（旅の順番でつなぐ）
+  const linePts = SPOTS.map((s) => `${s.x},${s.y}`).join(" ");
+  // 進んだぶんの線（到着ずみ区間 ＋ 現在地まで）
+  let bx = SPOTS[0].x, by = SPOTS[0].y;
+  const next = reached + 1 < SPOTS.length ? SPOTS[reached + 1] : null;
+  if (next) {
+    const span = next.km - SPOTS[reached].km;
+    const t = span > 0 ? Math.max(0, Math.min(1, (S.km - SPOTS[reached].km) / span)) : 0;
+    bx = SPOTS[reached].x + (next.x - SPOTS[reached].x) * t;
+    by = SPOTS[reached].y + (next.y - SPOTS[reached].y) * t;
+  } else { bx = SPOTS[SPOTS.length - 1].x; by = SPOTS[SPOTS.length - 1].y; }
+  const donePts = SPOTS.slice(0, reached + 1).map((s) => `${s.x},${s.y}`).join(" ") + ` ${bx},${by}`;
+  // 県の点
+  const dots = SPOTS.map((s) => {
+    const done = S.visited[s.pref];
+    return `<circle cx="${s.x}" cy="${s.y}" r="${done ? 1.9 : 1.4}" fill="${done ? "#ff6fa5" : "#ffd6e7"}" stroke="#fff" stroke-width="0.4"/>`;
+  }).join("");
+  return `<svg viewBox="0 0 86 100" class="jp-map" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="${linePts}" fill="none" stroke="#ffe3ef" stroke-width="1" stroke-linejoin="round" stroke-dasharray="2 1.5"/>
+    <polyline points="${donePts}" fill="none" stroke="#ff9ec4" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    <text x="${bx}" y="${by + 1.8}" font-size="5.5" text-anchor="middle">🚲</text>
+  </svg>`;
+}
+
 // ---------- ホーム描画 ----------
 function renderHome() {
   refreshTop();
-  const stage = dispStage();
-  $("petBig").innerHTML = `<span class="pet-acc" id="petAcc">${S.acc || ""}</span>${PET_STAGES[stage].emoji}`;
-  $("petName").textContent = PET_STAGES[stage].name;
-  const need = nextNeed(stage);
-  const prev = PET_STAGES[stage].need;
-  const pct = need > prev ? Math.max(0, Math.min(100, Math.round(((S.exp - prev) / (need - prev)) * 100))) : 100;
-  $("expBar").style.width = pct + "%";
-  $("expNow").textContent = S.exp;
-  $("expMax").textContent = need;
+  const reached = reachedIndexFor(S.km);
+  const cur = SPOTS[reached];
+  const next = nextSpot();
+  $("mapBox").innerHTML = buildMapSVG();
+  $("curSpot").textContent = `${cur.emoji} 今いるところ：${cur.full}（${cur.city}）`;
+  if (next) {
+    const remain = Math.max(0, Math.ceil(next.km - S.km));
+    $("nextSpot").textContent = `つぎは ${next.full} まで あと ${remain}km`;
+  } else if (S.km < GOAL_KM) {
+    const remain = Math.max(0, Math.ceil(GOAL_KM - S.km));
+    $("nextSpot").textContent = `ゴールの亀山まで あと ${remain}km！`;
+  } else {
+    $("nextSpot").textContent = "日本一周たっせい！🎌";
+  }
+  const visitedCount = Object.keys(S.visited).length;
+  $("journeyBar").style.width = journeyPct() + "%";
+  $("journeyLabel").textContent = `${visitedCount} / ${SPOTS.length} 県　（${Math.round(S.km)}km / ${GOAL_KM}km）`;
 
-  // 復習ボタン
-  $("reviewBtn").disabled = S.wrongPool.length === 0;
-  $("reviewBtn").textContent = S.wrongPool.length
-    ? `🔁 間違えた問題を復習（${S.wrongPool.length}）` : "🔁 間違えた問題（なし）";
+  // 復習ボタン（きょうの復習＝期限ぶん／にがて練習＝まだ覚えきれていない全部）
+  const dueN = dueEntries().length, weakN = weakEntries().length;
+  $("reviewBtn").disabled = dueN === 0;
+  $("reviewBtn").textContent = dueN ? `🔁 きょうの復習（${dueN}）` : "🔁 きょうの復習（なし）";
+  $("weakBtn").disabled = weakN === 0;
+  $("weakBtn").textContent = weakN ? `💪 にがて練習（${weakN}）` : "💪 にがて練習（なし）";
 
   // 単元たっせいど
   const box = $("unitProgress"); box.innerHTML = "";
@@ -221,47 +305,67 @@ function renderHome() {
   });
 }
 
-// ---------- ショップ描画 ----------
-function renderShop() {
+// ---------- ずかん描画（到着した県カード ＋ ご当地名物の購入/コレクション ＋ 検索） ----------
+function renderZukan(filter) {
   refreshTop();
-  $("shopCoin").textContent = S.coins;
-  const list = $("shopList"); list.innerHTML = "";
-  // はずすボタン
-  if (S.acc) {
-    const off = document.createElement("button");
-    off.className = "btn secondary small";
-    off.textContent = "アクセサリーを外す";
-    off.onclick = () => { S.acc = ""; save(); renderShop(); renderHome(); };
-    list.appendChild(off);
-  }
-  SHOP.forEach((item) => {
-    const owned = S.owned.includes(item.id);
-    const equipped = S.acc === item.emoji;
-    const row = document.createElement("div");
-    row.className = "shop-item";
-    let btn;
-    if (!owned) {
-      btn = `<button class="btn small ${S.coins < item.price ? "" : "violet"}" ${S.coins < item.price ? "disabled" : ""} onclick="buy('${item.id}')">🪙${item.price} で買う</button>`;
-    } else if (equipped) {
-      btn = `<button class="btn small secondary" disabled>装備中</button>`;
-    } else {
-      btn = `<button class="btn small" onclick="equip('${item.id}')">つける</button>`;
+  const q = (filter != null ? filter : ($("zukanSearch") ? $("zukanSearch").value : "")).trim();
+  const visitedCount = Object.keys(S.visited).length;
+  $("zukanCount").textContent = `${visitedCount}/${SPOTS.length}県　🍡${goodsOwnedCount()}/${GOODS.length}`;
+  if ($("zukanCoin")) $("zukanCoin").textContent = S.coins;
+  const list = $("zukanList"); list.innerHTML = "";
+  let shown = 0;
+  SPOTS.forEach((s) => {
+    const done = S.visited[s.pref];
+    const goods = GOODS_BY_PREF[s.pref] || [];
+    // 検索：県名・市名・紹介文・名物名/説明文 のどれかに一致
+    const goodsHit = done && goods.some((g) => g.name.includes(q) || g.desc.includes(q));
+    if (q && !(s.full.includes(q) || s.city.includes(q) || (done && s.intro.includes(q)) || goodsHit)) return;
+    shown++;
+
+    const card = document.createElement("div");
+    card.className = "zukan-pref" + (done ? "" : " locked");
+    if (!done) {
+      card.innerHTML = `<div class="zukan-head"><span class="zukan-emoji">❓</span>
+        <div class="zukan-info"><b>？？？</b><span class="muted">まだ行っていないよ</span></div></div>`;
+      list.appendChild(card);
+      return;
     }
-    row.innerHTML = `<span class="shop-emoji">${item.emoji}</span>
-      <div class="shop-info"><b>${item.name}</b><span class="muted">${owned ? "持ってるよ" : item.price + " コイン"}</span></div>${btn}`;
-    list.appendChild(row);
+    // 到着ずみ：紹介＋名物
+    let goodsHtml = goods.map((g) => {
+      const owned = S.goods[g.id];
+      let btn;
+      if (owned) {
+        btn = `<span class="good-owned">✓ ゲット</span>`;
+      } else if (S.coins < g.price) {
+        btn = `<button class="btn small" disabled>🪙${g.price}</button>`;
+      } else {
+        btn = `<button class="btn small violet" onclick="buyGood('${g.id}')">🪙${g.price} で買う</button>`;
+      }
+      return `<div class="good-item${owned ? " got" : ""}">
+        <span class="good-emoji">${g.emoji}</span>
+        <div class="good-info"><b>${g.name}</b><span class="muted">${owned ? g.desc : "ご当地名物"}</span></div>
+        ${btn}</div>`;
+    }).join("");
+
+    card.innerHTML = `<div class="zukan-head"><span class="zukan-emoji">${s.emoji}</span>
+        <div class="zukan-info"><b>${s.full}</b><span class="muted">${s.intro}</span></div></div>
+      <div class="goods-list">${goodsHtml}</div>`;
+    list.appendChild(card);
   });
+  if (shown === 0) {
+    list.innerHTML = `<p class="muted center">見つからなかったよ</p>`;
+  }
 }
-function buy(id) {
-  const item = SHOP.find((x) => x.id === id);
-  if (!item || S.coins < item.price || S.owned.includes(id)) return;
-  S.coins -= item.price; S.owned.push(id); S.acc = item.emoji;
-  save(); renderShop(); renderHome(); praise();
-}
-function equip(id) {
-  const item = SHOP.find((x) => x.id === id);
-  if (!item) return;
-  S.acc = item.emoji; save(); renderShop(); renderHome();
+
+// ご当地名物を買う（到着ずみ＆コインたりてる＆まだ持っていない とき）
+function buyGood(id) {
+  const g = GOODS.find((x) => x.id === id);
+  if (!g || !S.visited[g.pref] || S.goods[id] || S.coins < g.price) return;
+  S.coins -= g.price;
+  S.goods[id] = true;
+  save(); refreshTop();
+  beep(true); praise();
+  renderZukan();
 }
 
 // ======================================================
@@ -333,15 +437,16 @@ function answerQuiz(btn, opt) {
     $("quizFb").textContent = "正解！"; $("quizFb").className = "feedback good";
     beep(true); praise(); speak(quizCur.en);
     S.correctWords[quizCur.uid + ":" + quizCur.en] = true;
-    removeFromWrong("word", quizCur.uid, quizCur.en);
-    reward(10, 1);
+    const r = srsUpdate("word", quizCur.uid, quizCur.en, true);
+    reward(10, 1, JOURNEY.kmPerCorrect);
+    if (r.graduated) masterPop();
   } else {
     btn.classList.add("wrong");
     $("quizFb").textContent = "おしい！もう一度見てみよう"; $("quizFb").className = "feedback bad";
     $("quizAns").textContent = `答え：${quizCur.en}（${quizCur.ja}）`;
     $("quizAns").classList.remove("hidden");
     beep(false); speak(quizCur.en);
-    addToWrong("word", quizCur.uid, quizCur.en);
+    srsUpdate("word", quizCur.uid, quizCur.en, false);
   }
   $("quizNext").classList.remove("hidden");
   $("quizNext").textContent = (quizI + 1 < quizList.length) ? "次へ →" : "終わる 🏠";
@@ -428,8 +533,9 @@ function checkArrange() {
     $("arrFb").textContent = "正解！"; $("arrFb").className = "feedback good";
     beep(true); praise(); speak(arrCur.tokens.join(" "));
     S.correctSents[arrCur.uid + ":" + arrCur.idx] = true;
-    removeFromWrong("sent", arrCur.uid, arrCur.idx);
-    reward(15, 2);
+    const r = srsUpdate("sent", arrCur.uid, arrCur.idx, true);
+    reward(15, 2, JOURNEY.kmPerCorrect);
+    if (r.graduated) masterPop();
     $("arrCheck").classList.add("hidden");
     $("arrNext").classList.remove("hidden");
     $("arrNext").textContent = (arrI + 1 < arrList.length) ? "次へ →" : "終わる 🏠";
@@ -439,7 +545,7 @@ function checkArrange() {
     $("arrAns").textContent = "答え：" + arrCur.tokens.join(" ") + ".";
     $("arrAns").classList.remove("hidden");
     beep(false); speak(arrCur.tokens.join(" "));
-    addToWrong("sent", arrCur.uid, arrCur.idx);
+    srsUpdate("sent", arrCur.uid, arrCur.idx, false);
     // やり直し：少し待ってリセット
     arrAnswered = false;
     setTimeout(() => {
@@ -455,38 +561,90 @@ function nextArrange() {
 }
 
 // ======================================================
-//  復習（まちがえた問題）
+//  復習（忘却曲線 SRS：間隔をあけて再出題し、何回かの正解で卒業）
 // ======================================================
-function addToWrong(type, uid, key) {
-  const exists = S.wrongPool.some((w) => w.type === type && w.uid === uid && w.key === key);
-  if (!exists) { S.wrongPool.push({ type, uid, key }); save(); }
+// box: 0=まちがえた直後 / 1〜3=だんだん覚えてきた。正解するたびに間隔がのびる。
+// box4 に届いたら「マスター」して卒業（カードから消える）。
+const SRS_INTERVALS = { 1: 1, 2: 3, 3: 7 };  // 正解したら つぎは何日後か
+const SRS_GRADUATE = 4;                       // この box に届いたら卒業
+function dayNum() { return Math.floor(Date.now() / 86400000); }
+function srsKey(type, uid, key) { return type + ":" + uid + ":" + key; }
+function parseSrsKey(k) {
+  const p = k.split(":");
+  return { type: p[0], uid: p[1], key: p.slice(2).join(":") };
 }
-function removeFromWrong(type, uid, key) {
-  const before = S.wrongPool.length;
-  S.wrongPool = S.wrongPool.filter((w) => !(w.type === type && w.uid === uid && w.key === key));
-  if (S.wrongPool.length !== before) save();
+// 答え合わせのたびに呼ぶ。{ graduated:true } を返したら卒業（マスター）。
+function srsUpdate(type, uid, key, correct) {
+  const k = srsKey(type, uid, key);
+  const card = S.srs[k];
+  if (correct) {
+    if (!card) return {};                 // 一度も間違えていない問題は復習不要
+    const nb = (card.box || 0) + 1;
+    if (nb >= SRS_GRADUATE) { delete S.srs[k]; save(); return { graduated: true }; }
+    S.srs[k] = { box: nb, due: dayNum() + SRS_INTERVALS[nb] };
+    save(); return {};
+  } else {
+    S.srs[k] = { box: 0, due: dayNum() };  // まちがえたら今日また復習
+    save(); return {};
+  }
 }
-function startReview() {
-  if (S.wrongPool.length === 0) return;
-  updateStreak();
+// 復習の対象を取り出す
+function srsEntries(onlyDue) {
+  const today = dayNum();
+  return Object.keys(S.srs)
+    .filter((k) => !onlyDue || (S.srs[k].due || 0) <= today)
+    .map(parseSrsKey);
+}
+function dueEntries() { return srsEntries(true); }   // 期限が来たもの
+function weakEntries() { return srsEntries(false); }  // 苦手（まだ卒業していない全部）
+
+// entries（{type,uid,key}）を 出題できる単語/文に変換
+function entriesToItems(entries) {
   const wordItems = [], sentItems = [];
-  S.wrongPool.forEach((w) => {
+  entries.forEach((w) => {
+    const u = UNITS.find((x) => x.id === w.uid);
+    if (!u) return;
     if (w.type === "word") {
-      const u = UNITS.find((x) => x.id === w.uid);
-      const word = u && u.words.find((x) => x.en === w.key);
+      const word = u.words.find((x) => x.en === w.key);
       if (word) wordItems.push(Object.assign({ uid: u.id }, word));
     } else {
-      const u = UNITS.find((x) => x.id === w.uid);
-      const s = u && u.sentences[w.key];
-      if (s) sentItems.push({ uid: u.id, idx: w.key, ja: s.ja, tokens: s.tokens });
+      const s = u.sentences[w.key];
+      if (s) sentItems.push({ uid: u.id, idx: Number(w.key), ja: s.ja, tokens: s.tokens });
     }
   });
-  // 単語が多ければ4択、文が多ければならべかえ。まず単語復習を優先。
+  return { wordItems, sentItems };
+}
+function runReview(entries) {
+  const { wordItems, sentItems } = entriesToItems(entries);
+  // 単語が多ければ4択、文だけなら ならべかえ。まず単語を優先（1回あたりの数は控えめに）。
   if (wordItems.length) {
-    quizList = shuffle(wordItems); quizI = 0; show("quiz"); renderQuiz();
+    quizList = shuffle(wordItems).slice(0, 12); quizI = 0; show("quiz"); renderQuiz();
   } else if (sentItems.length) {
-    arrList = shuffle(sentItems); arrI = 0; show("arrange"); loadArrange();
+    arrList = shuffle(sentItems).slice(0, 10); arrI = 0; show("arrange"); loadArrange();
   }
+}
+// きょうの復習（期限が来たもの）。なければ苦手から。
+function startReview() {
+  let entries = dueEntries();
+  if (!entries.length) entries = weakEntries();
+  if (!entries.length) return;
+  updateStreak();
+  runReview(entries);
+}
+// 苦手だけ練習（期限に関係なく、まだ覚えきれていない問題を集中特訓）
+function startWeak() {
+  const entries = weakEntries();
+  if (!entries.length) return;
+  updateStreak();
+  runReview(entries);
+}
+// マスター（卒業）したときの ごほうび演出
+function masterPop() {
+  setTimeout(() => {
+    const el = $("praiseText");
+    el.textContent = "マスター！⭐";
+    el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+  }, 700);
 }
 
 // ---------- セッション終了 ----------

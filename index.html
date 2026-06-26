@@ -149,11 +149,42 @@
   .center{text-align:center;}
   .muted{color:var(--muted); font-size:13px;}
 
-  /* shop */
-  .shop-item{display:flex; align-items:center; gap:12px; padding:10px; border-radius:14px; background:#fff; box-shadow:0 2px 0 var(--ring); margin:8px 0;}
-  .shop-emoji{font-size:30px;}
-  .shop-info{flex:1;}
-  .shop-info b{display:block;}
+  /* ===== 日本一周マップ ===== */
+  .chip.km{color:#c0529a;}
+  .map-box{
+    width:100%; max-width:300px; margin:6px auto 4px; display:block;
+  }
+  .jp-map{width:100%; height:auto; display:block;}
+  .cur-spot{font-weight:800; font-size:16px; margin-top:6px;}
+  .next-spot{font-size:13px; color:var(--pink-d); font-weight:700; margin-top:2px;}
+
+  /* ===== ずかん ===== */
+  .zukan-search{
+    width:100%; border:2px solid var(--ring); border-radius:14px; padding:10px 12px;
+    font-size:15px; font-family:inherit; margin-bottom:10px; outline:none; color:var(--ink);
+  }
+  .zukan-search:focus{border-color:var(--pink);}
+  .zukan-pref{padding:10px; border-radius:16px; background:#fff; box-shadow:0 2px 0 var(--ring); margin:10px 0;}
+  .zukan-pref.locked{opacity:.5;}
+  .zukan-head{display:flex; align-items:center; gap:12px;}
+  .zukan-emoji{font-size:30px; flex:0 0 auto;}
+  .zukan-info{flex:1; min-width:0;}
+  .zukan-info b{display:block;}
+  .goods-list{margin-top:8px; display:flex; flex-direction:column; gap:6px;}
+  .good-item{display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:12px; background:var(--bg1);}
+  .good-item.got{background:#eafbf2;}
+  .good-emoji{font-size:22px; flex:0 0 auto;}
+  .good-info{flex:1; min-width:0;}
+  .good-info b{display:block; font-size:14px;}
+  .good-info .muted{font-size:12px;}
+  .good-owned{color:var(--good); font-weight:800; font-size:13px; flex:0 0 auto;}
+
+  /* ===== 到着モーダル ===== */
+  .modal{position:fixed; inset:0; background:rgba(74,59,70,.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:20px;}
+  .modal-card{background:var(--card); border-radius:24px; padding:22px; max-width:340px; width:100%; box-shadow:0 12px 30px rgba(255,140,180,.4); animation:titlePop .4s ease-out;}
+  .arv-emoji{font-size:64px; text-align:center; line-height:1.1;}
+  .arv-intro{font-size:15px; line-height:1.6; margin:8px 0;}
+  .arv-coin{color:#b07d00; font-weight:800; font-size:14px; min-height:18px;}
 
   /* ===== 横型タブレット（ランドスケープ）レイアウト ===== */
   @media (orientation:landscape) and (min-width:740px){
@@ -166,7 +197,7 @@
     #view-home > .card:nth-child(2){grid-column:1; grid-row:2 / span 2;}
     #view-home > .card:nth-child(3){grid-column:2; grid-row:2;}
     #view-home > .card:nth-child(4){grid-column:2; grid-row:3;}
-    .pet-big{font-size:72px;}
+    .map-box{max-width:340px;}
 
     /* 4択クイズ：問題を左、選択肢を右の2カラム */
     #view-quiz .card{display:grid; grid-template-columns:1fr 1fr; gap:8px 22px; align-items:center;}
@@ -184,9 +215,9 @@
     #arrSlot{min-height:64px;}
     .tile,.choice{font-size:19px;}
 
-    /* ショップ：2カラム */
-    #shopList{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
-    #shopList .shop-item{margin:0;}
+    /* ずかん：2カラム */
+    #zukanList{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start;}
+    #zukanList .zukan-pref{margin:0;}
   }
 </style>
 </head>
@@ -195,11 +226,11 @@
 
   <!-- top bar -->
   <div class="topbar">
-    <span class="pet-mini" id="petMini">🥚</span>
+    <span class="pet-mini" id="bikeMini">🚲</span>
     <div class="stats">
       <span class="chip streak">🔥<span id="streakN">0</span>日</span>
       <span class="chip coin">🪙<span id="coinN">0</span></span>
-      <span class="chip">⭐<span id="lvN">1</span></span>
+      <span class="chip km">🚩<span id="kmN">0</span>km</span>
     </div>
   </div>
 
@@ -211,22 +242,23 @@
       <span class="deco">🐣</span>
     </div>
     <div class="card">
-      <div class="pet-stage">
-        <div class="pet-big" id="petBig"><span class="pet-acc" id="petAcc"></span>🥚</div>
-        <div class="pet-name" id="petName">たまご</div>
-      </div>
+      <h2 class="center">🚲 じてんしゃで日本一周</h2>
+      <div class="map-box" id="mapBox"></div>
+      <div class="center cur-spot" id="curSpot">🏯 今いるところ：三重県（亀山）</div>
+      <div class="center next-spot" id="nextSpot">つぎの県まで あと…</div>
       <div class="exp-wrap">
-        <div class="bar"><i id="expBar"></i></div>
-        <div class="exp-label"><span id="expNow">0</span>/<span id="expMax">50</span> ごはん</div>
+        <div class="bar"><i id="journeyBar"></i></div>
+        <div class="exp-label"><span id="journeyLabel">0 / 47 県</span></div>
       </div>
-      <p class="center muted" id="todayMsg">今日の問題を解いて、ペットにごはんをあげよう！</p>
+      <p class="center muted">問題を解くと進むよ。（1問せいかい＝2km）</p>
     </div>
 
     <div class="card">
       <h2>今日の練習</h2>
       <button class="btn" onclick="startQuiz()">📖 単語４択クイズ</button>
       <button class="btn violet" onclick="startArrange()">🧩 英文ならべかえ</button>
-      <button class="btn secondary" id="reviewBtn" onclick="startReview()">🔁 間違えた問題を復習</button>
+      <button class="btn secondary" id="reviewBtn" onclick="startReview()">🔁 きょうの復習</button>
+      <button class="btn secondary" id="weakBtn" onclick="startWeak()">💪 にがて練習</button>
     </div>
 
     <div class="card">
@@ -267,15 +299,28 @@
     </div>
   </section>
 
-  <!-- ===== SHOP / きせかえ ===== -->
-  <section id="view-shop" class="hidden">
+  <!-- ===== ZUKAN / ごほうび図鑑 ===== -->
+  <section id="view-zukan" class="hidden">
     <div class="card">
-      <h2>着せ替えショップ 🪙<span id="shopCoin">0</span></h2>
-      <p class="muted">コインを使ってペットを可愛くしよう！</p>
-      <div id="shopList"></div>
+      <h2>旅のずかん 🗾</h2>
+      <p class="muted center" style="margin:0 0 8px;"><span id="zukanCount">0/47県</span>　もちコイン 🪙<span id="zukanCoin">0</span></p>
+      <input type="search" id="zukanSearch" class="zukan-search" placeholder="🔍 県名や名物でさがす（例：北海道、うどん）" oninput="renderZukan()">
+      <div id="zukanList"></div>
     </div>
   </section>
 
+</div>
+
+<!-- ===== 到着モーダル ===== -->
+<div id="arrivalModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="arv-emoji" id="arvEmoji">🏯</div>
+    <h2 class="center" id="arvTitle"></h2>
+    <p class="center arv-intro" id="arvIntro"></p>
+    <p class="center arv-coin" id="arvCoin"></p>
+    <button class="btn" onclick="closeArrival()">つぎへ進む 🚲</button>
+    <button class="btn secondary small hidden" id="arvRest" onclick="restFromArrival()" style="margin:6px auto 0;">🚏 道の駅で復習</button>
+  </div>
 </div>
 
 <!-- praise overlay -->
@@ -286,7 +331,7 @@
   <button id="nav-home" class="active" onclick="show('home')"><span class="ic">🏠</span>ホーム</button>
   <button id="nav-quiz" onclick="startQuiz()"><span class="ic">📖</span>単語</button>
   <button id="nav-arrange" onclick="startArrange()"><span class="ic">🧩</span>並べ替え</button>
-  <button id="nav-shop" onclick="show('shop')"><span class="ic">🎀</span>着せ替え</button>
+  <button id="nav-zukan" onclick="show('zukan')"><span class="ic">🗾</span>ずかん</button>
 </nav>
 
 <script src="data.js"></script>
