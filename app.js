@@ -321,10 +321,10 @@ function buildMapSVG() {
   // 自転車に乗る人：顔写真があれば丸く切り抜いて表示、なければ自転車の絵文字
   const face = getFace();
   const rider = face
-    ? `<clipPath id="faceClip"><circle cx="${bx}" cy="${by - 3}" r="3"/></clipPath>
-       <circle cx="${bx}" cy="${by - 3}" r="3.4" fill="#fff" stroke="#ff5f9e" stroke-width="0.6"/>
-       <image href="${face}" x="${bx - 3}" y="${by - 6}" width="6" height="6" clip-path="url(#faceClip)" preserveAspectRatio="xMidYMid slice"/>
-       <text x="${bx}" y="${by + 3.2}" font-size="4" text-anchor="middle">🚲</text>`
+    ? `<clipPath id="faceClip"><circle cx="${bx}" cy="${by - 4.5}" r="4.5"/></clipPath>
+       <circle cx="${bx}" cy="${by - 4.5}" r="5" fill="#fff" stroke="#ff5f9e" stroke-width="0.7"/>
+       <image href="${face}" x="${bx - 4.5}" y="${by - 9}" width="9" height="9" clip-path="url(#faceClip)" preserveAspectRatio="xMidYMid slice"/>
+       <text x="${bx}" y="${by + 4}" font-size="4" text-anchor="middle">🚲</text>`
     : `<text x="${bx}" y="${by + 1.6}" font-size="4.6" text-anchor="middle">🚲</text>`;
   return `<svg viewBox="${MAP_VIEWBOX}" class="jp-map" xmlns="http://www.w3.org/2000/svg">
     ${japanLand()}
