@@ -301,16 +301,14 @@ function clearFace() { try { localStorage.removeItem(FACE_KEY); } catch (e) {} r
 // ---------- 名前（※端末内だけに保存。友達も自分の名前にできる） ----------
 const NAME_KEY = "eigo-drill-name";
 const DEFAULT_NAME = "れいな";
-function getName() { try { return localStorage.getItem(NAME_KEY) || DEFAULT_NAME; } catch (e) { return DEFAULT_NAME; } }
+// 未設定(null)なら初期名「れいな」。空文字""なら名前なし（＝「英語ドリル」だけ）
+function getName() { try { const v = localStorage.getItem(NAME_KEY); return v === null ? DEFAULT_NAME : v; } catch (e) { return DEFAULT_NAME; } }
 function escHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function changeName() {
-  const n = prompt("なまえを入れてね（10文字まで）", getName());
+  const n = prompt("なまえを入れてね（10文字まで／空にすると「英語ドリル」だけになるよ）", getName());
   if (n === null) return;                 // キャンセル
   const t = n.trim().slice(0, 10);
-  try {
-    if (t) localStorage.setItem(NAME_KEY, t);
-    else localStorage.removeItem(NAME_KEY); // 空なら初期の名前にもどる
-  } catch (e) {}
+  try { localStorage.setItem(NAME_KEY, t); } catch (e) {} // 空でもそのまま保存（＝名前なし）
   renderHome();
 }
 
@@ -377,10 +375,10 @@ function renderHome() {
   $("journeyBar").style.width = journeyPct() + "%";
   $("journeyLabel").textContent = `${visitedCount} / ${SPOTS.length} 県　（${Math.round(S.km)}km / ${GOAL_KM}km）`;
 
-  // 名前（アプリタイトル・見出しに反映。端末ごとに自分の名前にできる）
+  // 名前（アプリタイトル・見出しに反映。端末ごとに自分の名前にできる。空なら名前なし）
   const nm = getName();
-  if ($("appName")) $("appName").innerHTML = `${escHtml(nm)}の<br>英語ドリル`;
-  document.title = `${nm}の英語ドリル`;
+  if ($("appName")) $("appName").innerHTML = nm ? `${escHtml(nm)}の<br>英語ドリル` : `英語ドリル`;
+  document.title = nm ? `${nm}の英語ドリル` : `英語ドリル`;
 
   // 顔写真ボタン（写真があれば「かえる／けす」）
   if ($("faceBtnLabel")) $("faceBtnLabel").textContent = getFace() ? "顔写真をかえる" : "顔写真をえらぶ";
