@@ -770,7 +770,7 @@ window.addEventListener("load", () => {
       refreshing = true;
       window.location.reload();
     });
-    navigator.serviceWorker.register("sw.js").then((reg) => {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {
       reg.update();
       // ページ表示中に更新が来ても、待たせず即適用
       reg.addEventListener("updatefound", () => {

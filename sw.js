@@ -1,5 +1,5 @@
 // オフラインキャッシュ（PWA）：オンライン時は最新を取得し、オフライン時のみキャッシュを使う
-const CACHE = "eigo-drill-v15";
+const CACHE = "eigo-drill-v16";
 const ASSETS = [
   "./index.html",
   "./app.js",
@@ -21,8 +21,9 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   // ネットワーク優先：最新を取りに行き、成功したらキャッシュも更新。失敗時はキャッシュへ。
+  // cache:"no-cache" でHTTPキャッシュを毎回サーバー検証し、更新を即反映する。
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-cache" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
