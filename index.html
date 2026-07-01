@@ -243,7 +243,7 @@
   <section id="view-home">
     <div class="apptitle">
       <span class="deco">🌸</span>
-      <span class="grad">れいなの<br>英語ドリル</span>
+      <span class="grad" id="appName">れいなの<br>英語ドリル</span>
       <span class="deco">🐣</span>
     </div>
     <div class="card">
@@ -258,11 +258,12 @@
       </div>
       <p class="center muted">問題を解くと進むよ。（1問せいかい＝2km）</p>
       <div class="center face-row">
+        <button class="btn secondary small" onclick="changeName()">✏️ なまえをかえる</button>
         <label class="btn secondary small" for="faceInput">📷 <span id="faceBtnLabel">顔写真をえらぶ</span></label>
         <button class="btn secondary small hidden" id="faceClearBtn" onclick="clearFace()">けす</button>
         <input type="file" id="faceInput" accept="image/*" onchange="pickFace(this)" hidden>
       </div>
-      <p class="center muted" style="font-size:10px; opacity:.7; margin:4px 0 0;">写真はこの端末の中だけに保存され、公開されません</p>
+      <p class="center muted" style="font-size:10px; opacity:.7; margin:4px 0 0;">名前・写真はこの端末の中だけに保存され、公開されません</p>
       <p class="center muted" style="font-size:10px; opacity:.7; margin:2px 0 0;">地図データ：地球地図日本（国土地理院）</p>
     </div>
 

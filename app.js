@@ -298,6 +298,22 @@ function pickFace(input) {
 }
 function clearFace() { try { localStorage.removeItem(FACE_KEY); } catch (e) {} renderHome(); }
 
+// ---------- 名前（※端末内だけに保存。友達も自分の名前にできる） ----------
+const NAME_KEY = "eigo-drill-name";
+const DEFAULT_NAME = "れいな";
+function getName() { try { return localStorage.getItem(NAME_KEY) || DEFAULT_NAME; } catch (e) { return DEFAULT_NAME; } }
+function escHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function changeName() {
+  const n = prompt("なまえを入れてね（10文字まで）", getName());
+  if (n === null) return;                 // キャンセル
+  const t = n.trim().slice(0, 10);
+  try {
+    if (t) localStorage.setItem(NAME_KEY, t);
+    else localStorage.removeItem(NAME_KEY); // 空なら初期の名前にもどる
+  } catch (e) {}
+  renderHome();
+}
+
 // ---------- 地図SVGを組み立てる ----------
 function buildMapSVG() {
   const reached = reachedIndexFor(S.km);
@@ -360,6 +376,11 @@ function renderHome() {
   }
   $("journeyBar").style.width = journeyPct() + "%";
   $("journeyLabel").textContent = `${visitedCount} / ${SPOTS.length} 県　（${Math.round(S.km)}km / ${GOAL_KM}km）`;
+
+  // 名前（アプリタイトル・見出しに反映。端末ごとに自分の名前にできる）
+  const nm = getName();
+  if ($("appName")) $("appName").innerHTML = `${escHtml(nm)}の<br>英語ドリル`;
+  document.title = `${nm}の英語ドリル`;
 
   // 顔写真ボタン（写真があれば「かえる／けす」）
   if ($("faceBtnLabel")) $("faceBtnLabel").textContent = getFace() ? "顔写真をかえる" : "顔写真をえらぶ";
