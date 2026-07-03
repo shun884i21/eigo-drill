@@ -179,6 +179,9 @@
   .goods-list{margin-top:8px; display:flex; flex-direction:column; gap:6px;}
   .good-item{display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:12px; background:var(--bg1);}
   .good-item.got{background:#eafbf2;}
+  .zukan-toggle{display:flex; gap:8px; margin:0 0 8px;}
+  .ztab{flex:1; padding:8px; border-radius:12px; border:2px solid var(--ring); background:#fff; font-weight:700; color:#c26a93; font-size:14px; cursor:pointer;}
+  .ztab.active{background:#ffe3ef; border-color:#ff9ec4; color:#e0447e;}
   .good-emoji{font-size:22px; flex:0 0 auto;}
   .good-info{flex:1; min-width:0;}
   .good-info b{display:block; font-size:14px;}
@@ -318,6 +321,10 @@
     <div class="card">
       <h2>旅のずかん 🗾</h2>
       <p class="muted center" style="margin:0 0 8px;"><span id="zukanCount">0/47県</span>　もちコイン 🪙<span id="zukanCoin">0</span></p>
+      <div class="zukan-toggle">
+        <button id="zkModeGoods" class="ztab active" onclick="setZukanMode('goods')">🍡 めいぶつ</button>
+        <button id="zkModeGear" class="ztab" onclick="setZukanMode('gear')">🚲 どうぐや</button>
+      </div>
       <input type="search" id="zukanSearch" class="zukan-search" placeholder="🔍 県名や名物でさがす（例：北海道、うどん）" oninput="renderZukan()">
       <div id="zukanList"></div>
     </div>

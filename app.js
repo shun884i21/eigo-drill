@@ -3,7 +3,7 @@
 // ---------- セーブデータ ----------
 const SAVE_KEY = "eigo-drill-v1";
 const defaultState = {
-  ver: 4,            // セーブ形式バージョン（移行判定用）
+  ver: 5,            // セーブ形式バージョン（移行判定用）
   exp: 0,            // 累計の経験値（内部用）
   coins: 0,
   level: 1,
@@ -13,6 +13,7 @@ const defaultState = {
   visited: {},       // "三重" -> true （到着した県）
   reached: 0,        // これまで到達した spots のインデックス
   goods: {},         // "三重#0" -> true （買ったご当地名物）
+  gear: { owned: {}, ride: "", buddy: "", deco: "" },  // どうぐや（owned=買った物 / ride,buddy,deco=そうび中のid）
   correctWords: {},  // "u1:I" -> true （一度でも正解した単語）
   correctSents: {},  // "u1:0" -> true
   srs: {},           // 忘却曲線の復習カード "word:u1:I" -> { box, due }
@@ -44,6 +45,10 @@ function load() {
       if (!s.visited || !s.visited["三重"]) { s.visited = Object.assign({ "三重": true }, s.visited || {}); }
       s.goods = Object.assign({}, parsed.goods || {});  // 既定の共有参照を避ける
       s.srs = Object.assign({}, s.srs || {});
+      // どうぐや（ver5）：無ければ空で追加
+      s.gear = Object.assign({ owned: {}, ride: "", buddy: "", deco: "" }, parsed.gear || {});
+      s.gear.owned = Object.assign({}, (parsed.gear && parsed.gear.owned) || {});
+      s.ver = Math.max(s.ver || 0, 5);
       return s;
     }
   } catch (e) {}
@@ -115,6 +120,15 @@ function refreshTop() {
   $("streakN").textContent = S.streak;
   $("coinN").textContent = S.coins;
   $("kmN").textContent = Math.round(S.km);
+  if ($("bikeMini")) $("bikeMini").textContent = gearEmoji("ride") || "🚲";
+}
+
+// そうび中アイテムの絵文字（cat: "ride" / "buddy" / "deco"。未そうびは ""）
+function gearEmoji(cat) {
+  const id = S.gear && S.gear[cat];
+  if (!id) return "";
+  const it = GEAR_ITEMS.find((g) => g.id === id);
+  return it ? it.emoji : "";
 }
 
 // ---------- 音声よみあげ ----------
@@ -333,13 +347,20 @@ function buildMapSVG() {
     return `<circle cx="${s.x}" cy="${s.y}" r="${done ? 1.5 : 1.1}" fill="${done ? "#ff5f9e" : "#ffd6e7"}" stroke="#fff" stroke-width="0.35"/>`;
   }).join("");
   // 自転車に乗る人：顔写真があれば丸く切り抜いて表示、なければ自転車の絵文字
+  // どうぐや：のりもの（🚲のかわり）／かざり（あたまの上）／おとも（となり）も描く
   const face = getFace();
+  const rideE = gearEmoji("ride") || "🚲";
+  const decoE = gearEmoji("deco");
+  const buddyE = gearEmoji("buddy");
+  const extras =
+    (decoE ? `<text x="${bx}" y="${by - (face ? 13.6 : 4.2)}" font-size="3.8" text-anchor="middle">${decoE}</text>` : "") +
+    (buddyE ? `<text x="${bx + (face ? 8 : 5.5)}" y="${by + (face ? 4.5 : 1.6)}" font-size="3.6" text-anchor="middle">${buddyE}</text>` : "");
   const rider = face
     ? `<clipPath id="faceClip"><circle cx="${bx}" cy="${by - 6}" r="6"/></clipPath>
        <circle cx="${bx}" cy="${by - 6}" r="6.8" fill="#fff" stroke="#ff5f9e" stroke-width="0.9"/>
        <image href="${face}" x="${bx - 6}" y="${by - 12}" width="12" height="12" clip-path="url(#faceClip)" preserveAspectRatio="xMidYMid slice"/>
-       <text x="${bx}" y="${by + 4.5}" font-size="4" text-anchor="middle">🚲</text>`
-    : `<text x="${bx}" y="${by + 1.6}" font-size="4.6" text-anchor="middle">🚲</text>`;
+       <text x="${bx}" y="${by + 4.5}" font-size="4" text-anchor="middle">${rideE}</text>${extras}`
+    : `<text x="${bx}" y="${by + 1.6}" font-size="4.6" text-anchor="middle">${rideE}</text>${extras}`;
   return `<svg viewBox="${MAP_VIEWBOX}" class="jp-map" xmlns="http://www.w3.org/2000/svg">
     ${japanLand()}
     <polyline points="${linePts}" fill="none" stroke="#ff8fb8" stroke-width="0.7" stroke-linejoin="round" stroke-dasharray="1.6 1.4" opacity="0.75"/>
@@ -407,14 +428,23 @@ function renderHome() {
   });
 }
 
-// ---------- ずかん描画（到着した県カード ＋ ご当地名物の購入/コレクション ＋ 検索） ----------
+// ---------- ずかん描画（到着した県カード ＋ ご当地名物の購入/コレクション ＋ 検索 ＋ どうぐや） ----------
+let zukanMode = "goods";  // "goods"=めいぶつ / "gear"=どうぐや
+function setZukanMode(m) { zukanMode = m; renderZukan(); }
 function renderZukan(filter) {
   refreshTop();
   const q = (filter != null ? filter : ($("zukanSearch") ? $("zukanSearch").value : "")).trim();
   const visitedCount = Object.keys(S.visited).length;
   $("zukanCount").textContent = `${visitedCount}/${SPOTS.length}県　🍡${goodsOwnedCount()}/${GOODS.length}`;
   if ($("zukanCoin")) $("zukanCoin").textContent = S.coins;
+  // めいぶつ／どうぐ の切り替えタブ
+  if ($("zkModeGoods")) {
+    $("zkModeGoods").classList.toggle("active", zukanMode === "goods");
+    $("zkModeGear").classList.toggle("active", zukanMode === "gear");
+    $("zukanSearch").classList.toggle("hidden", zukanMode === "gear");
+  }
   const list = $("zukanList"); list.innerHTML = "";
+  if (zukanMode === "gear") { renderGearShop(list); return; }
   let shown = 0;
   SPOTS.forEach((s) => {
     const done = S.visited[s.pref];
@@ -468,6 +498,49 @@ function buyGood(id) {
   save(); refreshTop();
   beep(true); praise();
   renderZukan();
+}
+
+// ---------- どうぐや（かざりアイテム。効果は見た目だけ） ----------
+function renderGearShop(list) {
+  const cats = [["ride", "🚲 のりもの", "🚲のかわりに地図を走るよ"], ["buddy", "🐾 おとも", "となりについてきてくれるよ"], ["deco", "🎀 かざり", "あたまの上にかざるよ"]];
+  cats.forEach(([cat, label, hint]) => {
+    const wrap = document.createElement("div");
+    wrap.className = "zukan-pref";
+    const items = GEAR_ITEMS.filter((g) => g.cat === cat).map((g) => {
+      const owned = S.gear.owned[g.id];
+      const equipped = S.gear[cat] === g.id;
+      let btn;
+      if (equipped) btn = `<button class="btn small" onclick="toggleGear('${g.id}')">はずす</button>`;
+      else if (owned) btn = `<button class="btn small violet" onclick="toggleGear('${g.id}')">そうびする</button>`;
+      else if (S.coins < g.price) btn = `<button class="btn small" disabled>🪙${g.price}</button>`;
+      else btn = `<button class="btn small violet" onclick="buyGear('${g.id}')">🪙${g.price} で買う</button>`;
+      return `<div class="good-item${owned ? " got" : ""}">
+        <span class="good-emoji">${g.emoji}</span>
+        <div class="good-info"><b>${g.name}${equipped ? "（そうび中）" : ""}</b><span class="muted">${g.desc}</span></div>
+        ${btn}</div>`;
+    }).join("");
+    wrap.innerHTML = `<div class="zukan-head"><div class="zukan-info"><b>${label}</b><span class="muted">${hint}</span></div></div>
+      <div class="goods-list">${items}</div>`;
+    list.appendChild(wrap);
+  });
+}
+// 買う（買ったらそのまま そうび）
+function buyGear(id) {
+  const g = GEAR_ITEMS.find((x) => x.id === id);
+  if (!g || S.gear.owned[id] || S.coins < g.price) return;
+  S.coins -= g.price;
+  S.gear.owned[id] = true;
+  S.gear[g.cat] = id;
+  save(); refreshTop();
+  beep(true); praise();
+  renderZukan();
+}
+// そうび／はずす の切り替え
+function toggleGear(id) {
+  const g = GEAR_ITEMS.find((x) => x.id === id);
+  if (!g || !S.gear.owned[id]) return;
+  S.gear[g.cat] = (S.gear[g.cat] === id) ? "" : id;
+  save(); renderZukan();
 }
 
 // ======================================================
@@ -644,7 +717,7 @@ function checkArrange() {
   } else {
     slotEl.classList.add("ng");
     $("arrFb").textContent = "おしい！もう一度"; $("arrFb").className = "feedback bad";
-    $("arrAns").textContent = "答え：" + arrCur.tokens.join(" ") + ".";
+    $("arrAns").textContent = "答え：" + arrCur.tokens.join(" ") + (/か。$/.test(arrCur.ja) ? "?" : ".");
     $("arrAns").classList.remove("hidden");
     beep(false); speak(arrCur.tokens.join(" "));
     srsUpdate("sent", arrCur.uid, arrCur.idx, false);
