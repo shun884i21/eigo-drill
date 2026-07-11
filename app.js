@@ -3,7 +3,7 @@
 // ---------- セーブデータ ----------
 const SAVE_KEY = "eigo-drill-v1";
 const defaultState = {
-  ver: 5,            // セーブ形式バージョン（移行判定用）
+  ver: 7,            // セーブ形式バージョン（移行判定用）
   exp: 0,            // 累計の経験値（内部用）
   coins: 0,
   level: 1,
@@ -17,6 +17,9 @@ const defaultState = {
   correctWords: {},  // "u1:I" -> true （一度でも正解した単語）
   correctSents: {},  // "u1:0" -> true
   srs: {},           // 忘却曲線の復習カード "word:u1:I" -> { box, due }
+  dailyDate: null,   // "YYYY-M-D"（今日のミッションのリセット判定）
+  dailyCorrect: 0,   // その日に正解した問題数
+  world: { started: false, km: 0, reached: 0, visited: { "東京": true }, done: false },
 };
 let S = load();
 
@@ -48,7 +51,18 @@ function load() {
       // どうぐや（ver5）：無ければ空で追加
       s.gear = Object.assign({ owned: {}, ride: "", buddy: "", deco: "" }, parsed.gear || {});
       s.gear.owned = Object.assign({}, (parsed.gear && parsed.gear.owned) || {});
-      s.ver = Math.max(s.ver || 0, 5);
+      // 今日のミッション（ver6）：古いセーブには0問から追加
+      if (!parsed.ver || parsed.ver < 6) {
+        s.dailyDate = null;
+        s.dailyCorrect = 0;
+      }
+      s.dailyCorrect = Math.max(0, Number(s.dailyCorrect) || 0);
+      // 世界一周（ver7）：日本一周を終えたあとに使う、別の進捗データ
+      s.world = Object.assign({ started: false, km: 0, reached: 0, visited: { "東京": true }, done: false }, parsed.world || {});
+      s.world.visited = Object.assign({ "東京": true }, (parsed.world && parsed.world.visited) || {});
+      s.world.km = Math.max(0, Number(s.world.km) || 0);
+      s.world.reached = Math.max(0, Number(s.world.reached) || 0);
+      s.ver = Math.max(s.ver || 0, 7);
       return s;
     }
   } catch (e) {}
@@ -91,6 +105,30 @@ function nextSpot() {
 // 旅の達成率（0〜100）
 function journeyPct() { return Math.max(0, Math.min(100, Math.round((S.km / GOAL_KM) * 100))); }
 
+// ---------- 世界一周の旅：大圏距離ヘルパー ----------
+function flightKm(a, b) {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+  const v = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(v), Math.sqrt(1 - v));
+}
+let worldRunningKm = 0;
+const WORLD_SPOTS = WORLD_JOURNEY.spots.map((s, i, list) => {
+  if (i) worldRunningKm += Math.round(flightKm(list[i - 1], s));
+  return Object.assign({}, s, { km: worldRunningKm, x: (s.lon + 180) * 1000 / 360, y: (90 - s.lat) * 500 / 180 });
+});
+const WORLD_GOAL_KM = worldRunningKm + Math.round(flightKm(WORLD_SPOTS[WORLD_SPOTS.length - 1], WORLD_SPOTS[0]));
+function worldReachedIndexFor(km) {
+  let idx = 0;
+  for (let i = 0; i < WORLD_SPOTS.length; i++) if (km >= WORLD_SPOTS[i].km) idx = i;
+  return idx;
+}
+function worldNextSpot() {
+  const idx = worldReachedIndexFor(S.world.km);
+  return idx + 1 < WORLD_SPOTS.length ? WORLD_SPOTS[idx + 1] : null;
+}
+function worldPct() { return Math.max(0, Math.min(100, Math.round((S.world.km / WORLD_GOAL_KM) * 100))); }
+
 // ご当地名物：全データに id（県名#番号）を付けて1つのリストに、県名→名物の辞書も作る
 const GOODS = [];
 const GOODS_BY_PREF = {};
@@ -119,8 +157,10 @@ function show(v) {
 function refreshTop() {
   $("streakN").textContent = S.streak;
   $("coinN").textContent = S.coins;
-  $("kmN").textContent = Math.round(S.km);
-  if ($("bikeMini")) $("bikeMini").textContent = gearEmoji("ride") || "🚲";
+  const world = S.lapDone && S.world && S.world.started;
+  $("kmN").textContent = Math.round(world ? S.world.km : S.km);
+  if ($("kmIcon")) $("kmIcon").textContent = world ? "✈️" : "🚩";
+  if ($("bikeMini")) $("bikeMini").textContent = world ? "✈️" : (gearEmoji("ride") || "🚲");
 }
 
 // そうび中アイテムの絵文字（cat: "ride" / "buddy" / "deco"。未そうびは ""）
@@ -193,10 +233,12 @@ function confetti() {
 function reward(exp, coins, km) {
   S.exp += exp;
   S.coins += coins;
-  S.km += (km || 0);
+  if (S.lapDone && S.world && S.world.started && !S.world.done) S.world.km += WORLD_JOURNEY.kmPerCorrect;
+  else S.km += (km || 0);
   S.level = S.exp; // 互換のため保持（表示はしない）
   save(); refreshTop();
-  checkArrival();
+  if (S.lapDone && S.world && S.world.started && !S.world.done) checkWorldArrival();
+  else checkArrival();
 }
 
 // 距離が伸びて新しい県に着いたら、紹介カードを出す
@@ -235,7 +277,17 @@ function showArrival(spot) {
   }
   $("arrivalModal").classList.remove("hidden");
 }
-function closeArrival() { $("arrivalModal").classList.add("hidden"); renderHome(); }
+function closeArrival() {
+  $("arrivalModal").classList.add("hidden");
+  // 最後の到着カードを閉じたら、次の問題を待たずにゴール演出へ進む。
+  if (S.world && S.world.started && S.world.km >= WORLD_GOAL_KM && !S.world.done) {
+    S.world.done = true; save(); setTimeout(showWorldGoal, 120); return;
+  }
+  if (S.km >= GOAL_KM && !S.lapDone) {
+    S.lapDone = true; save(); setTimeout(showGoal, 120); return;
+  }
+  renderHome();
+}
 function restFromArrival() { $("arrivalModal").classList.add("hidden"); startReview(); }
 
 // 日本一周ゴール！
@@ -244,6 +296,47 @@ function showGoal() {
   $("arvEmoji").textContent = "🎌";
   $("arvTitle").textContent = "日本一周たっせい！🎉";
   $("arvIntro").textContent = "ぐるっと47都道府県をまわって、亀山に帰ってきたよ。よくがんばったね！";
+  $("arvCoin").textContent = "";
+  $("arvRest").classList.add("hidden");
+  $("arrivalModal").classList.remove("hidden");
+}
+
+// ---------- 世界一周：出発・到着・ゴール ----------
+function startWorldJourney() {
+  if (!S.lapDone || S.world.started) return;
+  S.world.started = true;
+  S.world.visited = Object.assign({ "東京": true }, S.world.visited || {});
+  save();
+  renderHome();
+  praise();
+}
+function checkWorldArrival() {
+  const nowIdx = worldReachedIndexFor(S.world.km);
+  if (nowIdx > (S.world.reached || 0)) {
+    for (let i = (S.world.reached || 0) + 1; i <= nowIdx; i++) S.world.visited[WORLD_SPOTS[i].city] = true;
+    S.world.reached = nowIdx;
+    S.coins += WORLD_JOURNEY.arriveCoin;
+    save(); refreshTop();
+    setTimeout(() => showWorldArrival(WORLD_SPOTS[nowIdx]), 500);
+  } else if (S.world.km >= WORLD_GOAL_KM && !S.world.done) {
+    S.world.done = true; save();
+    setTimeout(showWorldGoal, 500);
+  }
+}
+function showWorldArrival(spot) {
+  praise();
+  $("arvEmoji").textContent = spot.emoji;
+  $("arvTitle").textContent = `${spot.flag} ${spot.city}（${spot.country}）にとうちゃく！`;
+  $("arvIntro").textContent = spot.intro;
+  $("arvCoin").textContent = `🪙 +${WORLD_JOURNEY.arriveCoin} コインをもらった！`;
+  $("arvRest").classList.add("hidden");
+  $("arrivalModal").classList.remove("hidden");
+}
+function showWorldGoal() {
+  praise(); confetti(); confetti();
+  $("arvEmoji").textContent = "🌍";
+  $("arvTitle").textContent = "世界一周たっせい！🎉";
+  $("arvIntro").textContent = "たくさんの国と都市をめぐって、東京に帰ってきたよ。世界を知る旅、完走！";
   $("arvCoin").textContent = "";
   $("arvRest").classList.add("hidden");
   $("arrivalModal").classList.remove("hidden");
@@ -262,6 +355,41 @@ function updateStreak() {
   S.streak = (S.lastPlay === yStr) ? S.streak + 1 : 1;
   S.lastPlay = t;
   save();
+}
+
+// ---------- 今日のミッション ----------
+const DAILY_GOAL = 5;
+function ensureDailyProgress() {
+  const today = todayStr();
+  if (S.dailyDate !== today) {
+    S.dailyDate = today;
+    S.dailyCorrect = 0;
+    save();
+  }
+}
+function recordDailyCorrect() {
+  ensureDailyProgress();
+  S.dailyCorrect += 1;
+  save();
+}
+function renderDailyMission() {
+  ensureDailyProgress();
+  const done = Math.min(S.dailyCorrect, DAILY_GOAL);
+  const complete = done >= DAILY_GOAL;
+  const perCorrect = S.lapDone && S.world && S.world.started ? WORLD_JOURNEY.kmPerCorrect : JOURNEY.kmPerCorrect;
+  const goalKm = DAILY_GOAL * perCorrect;
+  $("dailyCount").textContent = `${done} / ${DAILY_GOAL}問`;
+  $("dailyBar").style.width = `${Math.round((done / DAILY_GOAL) * 100)}%`;
+  $("dailyNote").textContent = complete
+    ? `今日の目標クリア！ 旅を${goalKm}km以上進めたね 🎉`
+    : `あと ${DAILY_GOAL - done}問正解で、旅を${goalKm}km進めよう！`;
+  $("dailyStart").disabled = complete;
+  $("dailyStart").textContent = complete ? "🎉 今日の目標クリア！" : `✨ ${DAILY_GOAL - done}問チャレンジ`;
+}
+function startDailyChallenge() {
+  ensureDailyProgress();
+  if (S.dailyCorrect >= DAILY_GOAL) return;
+  startQuiz(Math.min(DAILY_GOAL - S.dailyCorrect, DAILY_GOAL));
 }
 
 // 地図のviewBox（japan-map.js があれば本物の日本地図のものを使う）
@@ -370,31 +498,103 @@ function buildMapSVG() {
   </svg>`;
 }
 
+// 世界地図は Natural Earth の国境・海岸線データをSVG化して表示する。
+function worldLine(a, b) {
+  const ax = a.x, ay = a.y, bx = b.x, by = b.y;
+  if (Math.abs(bx - ax) <= 500) return `M${ax},${ay} L${bx},${by}`;
+  if (ax > bx) {
+    const wrappedX = bx + 1000, t = (1000 - ax) / (wrappedX - ax), y = ay + (by - ay) * t;
+    return `M${ax},${ay} L1000,${y} M0,${y} L${bx},${by}`;
+  }
+  const wrappedX = bx - 1000, t = (0 - ax) / (wrappedX - ax), y = ay + (by - ay) * t;
+  return `M${ax},${ay} L0,${y} M1000,${y} L${bx},${by}`;
+}
+function worldPosition() {
+  const reached = worldReachedIndexFor(S.world.km);
+  const from = WORLD_SPOTS[reached];
+  const to = reached + 1 < WORLD_SPOTS.length ? WORLD_SPOTS[reached + 1] : WORLD_SPOTS[0];
+  const endKm = reached + 1 < WORLD_SPOTS.length ? to.km : WORLD_GOAL_KM;
+  const t = Math.max(0, Math.min(1, (S.world.km - from.km) / (endKm - from.km)));
+  let tx = to.x;
+  if (Math.abs(tx - from.x) > 500) tx += tx < from.x ? 1000 : -1000;
+  return { x: (from.x + (tx - from.x) * t + 1000) % 1000, y: from.y + (to.y - from.y) * t };
+}
+function buildWorldMapSVG() {
+  const reached = worldReachedIndexFor(S.world.km);
+  const allRoute = WORLD_SPOTS.map((s, i) => i ? worldLine(WORLD_SPOTS[i - 1], s) : "").join(" ") + " " + worldLine(WORLD_SPOTS[WORLD_SPOTS.length - 1], WORLD_SPOTS[0]);
+  const doneRoute = WORLD_SPOTS.slice(1, reached + 1).map((s, i) => worldLine(WORLD_SPOTS[i], s)).join(" ") + " " + worldLine(WORLD_SPOTS[reached], worldPosition());
+  const dots = WORLD_SPOTS.map((s) => {
+    const done = S.world.visited[s.city];
+    return `<circle cx="${s.x}" cy="${s.y}" r="${done ? 5.6 : 4}" fill="${done ? "#ff5f9e" : "#ffd6e7"}" stroke="#fff" stroke-width="1.6"/>`;
+  }).join("");
+  const pos = worldPosition();
+  return `<svg viewBox="${WORLD_VIEWBOX}" class="jp-map world-map" xmlns="http://www.w3.org/2000/svg" aria-label="世界一周の進みぐあい">
+    <rect width="1000" height="500" rx="14" fill="#dff3fb"/>
+    <path d="${WORLD_LAND_PATH}" fill="#d9efc8" stroke="#9fc59a" stroke-width="0.65" stroke-linejoin="round"/>
+    <path d="${allRoute}" fill="none" stroke="#d8a6bd" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="7 7" opacity=".85"/>
+    <path d="${doneRoute}" fill="none" stroke="#ff5f9e" stroke-width="4.5" stroke-linecap="round"/>
+    ${dots}
+    <text x="${pos.x}" y="${pos.y + 8}" font-size="28" text-anchor="middle">✈️</text>
+  </svg>`;
+}
+function renderWorldJourney() {
+  const isStarted = S.world.started;
+  const reached = worldReachedIndexFor(S.world.km);
+  const current = WORLD_SPOTS[reached];
+  const next = worldNextSpot();
+  $("journeyTitle").textContent = "✈️ 飛行機で世界一周にチャレンジ！";
+  $("journeyHint").textContent = `問題を解くと進むよ。（1問せいかい＝${WORLD_JOURNEY.kmPerCorrect}km）`;
+  $("mapBox").classList.add("world");
+  $("mapBox").innerHTML = buildWorldMapSVG();
+  $("mapSource").textContent = "地図データ：Natural Earth（パブリックドメイン）";
+  $("curSpot").textContent = isStarted ? `${current.flag} 今いるところ：${current.city}（${current.country}）` : "🌍 世界一周の準備ができたよ！";
+  if (!isStarted) $("nextSpot").textContent = `東京から${WORLD_SPOTS.length - 1}都市をめぐる、約${WORLD_GOAL_KM.toLocaleString()}kmの大冒険！`;
+  else if (next) $("nextSpot").textContent = `つぎは ${next.flag} ${next.city} まで あと ${Math.max(0, Math.ceil(next.km - S.world.km)).toLocaleString()}km`;
+  else if (!S.world.done) $("nextSpot").textContent = `ゴールの東京まで あと ${Math.max(0, Math.ceil(WORLD_GOAL_KM - S.world.km)).toLocaleString()}km！`;
+  else $("nextSpot").textContent = "世界一周たっせい！🌍";
+  const visited = Object.keys(S.world.visited).length;
+  $("conquerBadge").textContent = S.world.done ? "🌍 世界一周 制覇！" : `🛬 ${visited} / ${WORLD_SPOTS.length}都市 到着！`;
+  $("conquerBadge").classList.toggle("all", S.world.done);
+  $("journeyBar").style.width = worldPct() + "%";
+  $("journeyLabel").textContent = `${Math.round(S.world.km).toLocaleString()}km / ${WORLD_GOAL_KM.toLocaleString()}km　（${worldPct()}%）`;
+  $("worldStart").classList.toggle("hidden", isStarted);
+}
+
 // ---------- ホーム描画 ----------
 function renderHome() {
   refreshTop();
-  const reached = reachedIndexFor(S.km);
-  const cur = SPOTS[reached];
-  const next = nextSpot();
-  $("mapBox").innerHTML = buildMapSVG();
-  $("curSpot").textContent = `${cur.emoji} 今いるところ：${cur.full}（${cur.city}）`;
-  if (next) {
-    const remain = Math.max(0, Math.ceil(next.km - S.km));
-    $("nextSpot").textContent = `つぎは ${next.full} まで あと ${remain}km`;
-  } else if (S.km < GOAL_KM) {
-    const remain = Math.max(0, Math.ceil(GOAL_KM - S.km));
-    $("nextSpot").textContent = `ゴールの亀山まで あと ${remain}km！`;
+  renderDailyMission();
+  if (S.lapDone) {
+    renderWorldJourney();
   } else {
-    $("nextSpot").textContent = "日本一周たっせい！🎌";
+    const reached = reachedIndexFor(S.km);
+    const cur = SPOTS[reached];
+    const next = nextSpot();
+    $("journeyTitle").textContent = "🚲 自転車で日本一周にチャレンジしよう！";
+    $("journeyHint").textContent = "問題を解くと進むよ。（1問せいかい＝2km）";
+    $("worldStart").classList.add("hidden");
+    $("mapBox").classList.remove("world");
+    $("mapSource").textContent = "地図データ：地球地図日本（国土地理院）";
+    $("mapBox").innerHTML = buildMapSVG();
+    $("curSpot").textContent = `${cur.emoji} 今いるところ：${cur.full}（${cur.city}）`;
+    if (next) {
+      const remain = Math.max(0, Math.ceil(next.km - S.km));
+      $("nextSpot").textContent = `つぎは ${next.full} まで あと ${remain}km`;
+    } else if (S.km < GOAL_KM) {
+      const remain = Math.max(0, Math.ceil(GOAL_KM - S.km));
+      $("nextSpot").textContent = `ゴールの亀山まで あと ${remain}km！`;
+    } else {
+      $("nextSpot").textContent = "日本一周たっせい！🎌";
+    }
+    const visitedCount = Object.keys(S.visited).length;
+    const allDone = visitedCount >= SPOTS.length;
+    if ($("conquerBadge")) {
+      $("conquerBadge").textContent = allDone ? `🎌 ${visitedCount}県 全制覇！` : `🏅 ${visitedCount}県 制覇！`;
+      $("conquerBadge").classList.toggle("all", allDone);
+    }
+    $("journeyBar").style.width = journeyPct() + "%";
+    $("journeyLabel").textContent = `${visitedCount} / ${SPOTS.length} 県　（${Math.round(S.km)}km / ${GOAL_KM}km）`;
   }
-  const visitedCount = Object.keys(S.visited).length;
-  const allDone = visitedCount >= SPOTS.length;
-  if ($("conquerBadge")) {
-    $("conquerBadge").textContent = allDone ? `🎌 ${visitedCount}県 全制覇！` : `🏅 ${visitedCount}県 制覇！`;
-    $("conquerBadge").classList.toggle("all", allDone);
-  }
-  $("journeyBar").style.width = journeyPct() + "%";
-  $("journeyLabel").textContent = `${visitedCount} / ${SPOTS.length} 県　（${Math.round(S.km)}km / ${GOAL_KM}km）`;
 
   // 名前（アプリタイトル・見出しに反映。端末ごとに自分の名前にできる。空なら名前なし）
   const nm = getName();
@@ -555,9 +755,9 @@ function allWords() {
 }
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-function startQuiz() {
+function startQuiz(count = 8) {
   updateStreak();
-  quizList = shuffle(allWords()).slice(0, 8);
+  quizList = shuffle(allWords()).slice(0, count);
   quizI = 0;
   show("quiz");
   renderQuiz();
@@ -613,6 +813,7 @@ function answerQuiz(btn, opt) {
     beep(true); praise(); speak(quizCur.en);
     S.correctWords[quizCur.uid + ":" + quizCur.en] = true;
     const r = srsUpdate("word", quizCur.uid, quizCur.en, true);
+    recordDailyCorrect();
     reward(10, 1, JOURNEY.kmPerCorrect);
     if (r.graduated) masterPop();
   } else {
@@ -709,6 +910,7 @@ function checkArrange() {
     beep(true); praise(); speak(arrCur.tokens.join(" "));
     S.correctSents[arrCur.uid + ":" + arrCur.idx] = true;
     const r = srsUpdate("sent", arrCur.uid, arrCur.idx, true);
+    recordDailyCorrect();
     reward(15, 2, JOURNEY.kmPerCorrect);
     if (r.graduated) masterPop();
     $("arrCheck").classList.add("hidden");

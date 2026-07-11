@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="theme-color" content="#ff9ec4" />
 <link rel="manifest" href="manifest.json" />
 <link rel="apple-touch-icon" href="icon.svg" />
@@ -23,7 +23,7 @@
     min-height:100dvh;
     -webkit-user-select:none; user-select:none;
   }
-  #app{max-width:480px; margin:0 auto; padding:14px 14px 90px; min-height:100dvh;}
+  #app{max-width:480px; margin:0 auto; padding:14px 14px calc(90px + env(safe-area-inset-bottom)); min-height:100dvh;}
 
   /* ===== top bar ===== */
   .topbar{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
@@ -82,6 +82,21 @@
   .btn.violet:active{box-shadow:0 1px 0 #7a5be0;}
   .btn.small{padding:10px; font-size:14px; width:auto; display:inline-block;}
   .btn[disabled]{opacity:.5;}
+  button:focus-visible, input:focus-visible{
+    outline:3px solid #6f54d8; outline-offset:3px;
+  }
+
+  /* ===== 今日のミッション ===== */
+  .daily-mission{
+    padding:12px; margin:0 0 14px; border-radius:16px;
+    background:linear-gradient(135deg,#fff7dc,#fff0f7); border:2px solid #ffe3a3;
+  }
+  .daily-head{display:flex; justify-content:space-between; gap:8px; align-items:center; font-weight:800; font-size:14px;}
+  .daily-count{color:#c17b00; white-space:nowrap;}
+  .daily-mission .bar{height:10px; margin:9px 0 6px; background:#ffe8ba;}
+  .daily-mission .bar > i{background:linear-gradient(90deg,#ffd36e,#ff9ec4);}
+  .daily-note{margin:0; font-size:12px; color:var(--muted); text-align:center;}
+  .daily-start{margin:10px 0 0; padding:10px; font-size:14px;}
 
   /* ===== unit progress ===== */
   .unit-row{display:flex; align-items:center; gap:10px; margin:8px 0;}
@@ -136,7 +151,7 @@
   nav{
     position:fixed; left:50%; transform:translateX(-50%); bottom:10px; width:calc(100% - 24px); max-width:456px;
     background:#fff; border-radius:22px; box-shadow:0 6px 18px rgba(255,140,180,.28);
-    display:flex; padding:6px; gap:4px; z-index:30;
+    display:flex; padding:6px; gap:4px; z-index:30; padding-bottom:calc(6px + env(safe-area-inset-bottom));
   }
   nav button{
     flex:1; border:none; background:none; padding:8px 4px; border-radius:16px; cursor:pointer;
@@ -149,11 +164,16 @@
   .center{text-align:center;}
   .muted{color:var(--muted); font-size:13px;}
 
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important;}
+  }
+
   /* ===== 日本一周マップ ===== */
   .chip.km{color:#c0529a;}
   .map-box{
     width:100%; max-width:300px; margin:6px auto 4px; display:block;
   }
+  .map-box.world{max-width:420px;}
   .jp-map{width:100%; height:auto; display:block;}
   .cur-spot{font-weight:800; font-size:16px; margin-top:6px;}
   .next-spot{font-size:13px; color:var(--pink-d); font-weight:700; margin-top:2px;}
@@ -238,7 +258,7 @@
     <div class="stats">
       <span class="chip streak">🔥<span id="streakN">0</span>日</span>
       <span class="chip coin">🪙<span id="coinN">0</span></span>
-      <span class="chip km">🚩<span id="kmN">0</span>km</span>
+      <span class="chip km"><span id="kmIcon">🚩</span><span id="kmN">0</span>km</span>
     </div>
   </div>
 
@@ -250,7 +270,7 @@
       <span class="deco">🐣</span>
     </div>
     <div class="card">
-      <h2 class="center">🚲 自転車で日本一周にチャレンジしよう！</h2>
+      <h2 class="center" id="journeyTitle">🚲 自転車で日本一周にチャレンジしよう！</h2>
       <div class="map-box" id="mapBox"></div>
       <div class="center cur-spot" id="curSpot">🏯 今いるところ：三重県（亀山）</div>
       <div class="center next-spot" id="nextSpot">つぎの県まで あと…</div>
@@ -259,7 +279,8 @@
         <div class="bar"><i id="journeyBar"></i></div>
         <div class="exp-label"><span id="journeyLabel">0 / 47 県</span></div>
       </div>
-      <p class="center muted">問題を解くと進むよ。（1問せいかい＝2km）</p>
+      <p class="center muted" id="journeyHint">問題を解くと進むよ。（1問せいかい＝2km）</p>
+      <button class="btn violet hidden" id="worldStart" onclick="startWorldJourney()">🌍 世界一周へ出発！</button>
       <div class="center face-row">
         <button class="btn secondary small" onclick="changeName()">✏️ なまえをかえる</button>
         <label class="btn secondary small" for="faceInput">📷 <span id="faceBtnLabel">顔写真をえらぶ</span></label>
@@ -267,13 +288,19 @@
         <input type="file" id="faceInput" accept="image/*" onchange="pickFace(this)" hidden>
       </div>
       <p class="center muted" style="font-size:10px; opacity:.7; margin:4px 0 0;">名前・写真はこの端末の中だけに保存され、公開されません</p>
-      <p class="center muted" style="font-size:10px; opacity:.7; margin:2px 0 0;">地図データ：地球地図日本（国土地理院）</p>
+      <p class="center muted" id="mapSource" style="font-size:10px; opacity:.7; margin:2px 0 0;">地図データ：地球地図日本（国土地理院）</p>
     </div>
 
     <div class="card">
       <h2>今日の練習</h2>
-      <button class="btn" onclick="startQuiz()">📖 単語４択クイズ</button>
-      <button class="btn violet" onclick="startArrange()">🧩 英文ならべかえ</button>
+      <div class="daily-mission" aria-label="今日の学習目標">
+        <div class="daily-head"><span>☀️ 今日のミッション</span><span class="daily-count" id="dailyCount">0 / 5問</span></div>
+        <div class="bar" aria-hidden="true"><i id="dailyBar"></i></div>
+        <p class="daily-note" id="dailyNote">5問正解で、旅を10km進めよう！</p>
+        <button class="btn violet daily-start" id="dailyStart" onclick="startDailyChallenge()">✨ 5問チャレンジ</button>
+      </div>
+      <button class="btn" onclick="startQuiz()">📖 たっぷり単語クイズ（8問）</button>
+      <button class="btn violet" onclick="startArrange()">🧩 英文ならべかえ（6問）</button>
       <button class="btn secondary" id="reviewBtn" onclick="startReview()">🔁 きょうの復習</button>
       <button class="btn secondary" id="weakBtn" onclick="startWeak()">💪 にがて練習</button>
     </div>
@@ -291,7 +318,7 @@
       <div class="q-prompt" id="quizPrompt">この意味の英単語は？</div>
       <div class="q-word"><span id="quizWord"></span> <button class="speak" id="quizSpeak" onclick="speakCurrent()">🔊</button></div>
       <div class="choices" id="quizChoices"></div>
-      <div class="feedback" id="quizFb"></div>
+      <div class="feedback" id="quizFb" aria-live="polite"></div>
       <div class="answer-line hidden" id="quizAns"></div>
       <button class="btn hidden" id="quizNext" onclick="nextQuiz()">つぎへ →</button>
     </div>
@@ -308,7 +335,7 @@
       <div class="ja-sentence" id="arrJa"></div>
       <div class="slot" id="arrSlot"></div>
       <div class="bank" id="arrBank"></div>
-      <div class="feedback" id="arrFb"></div>
+      <div class="feedback" id="arrFb" aria-live="polite"></div>
       <div class="answer-line hidden" id="arrAns"></div>
       <button class="btn" id="arrCheck" onclick="checkArrange()">答え合わせ</button>
       <button class="btn secondary small" onclick="clearSlot()" style="display:block;margin:0 auto;">↩ クリア</button>
@@ -357,6 +384,7 @@
 
 <script src="data.js"></script>
 <script src="japan-map.js"></script>
+<script src="world-map.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
