@@ -1334,7 +1334,7 @@ const VOLUME_UP_UNITS = {
     ],
     sentences: [
       { ja: "テーブルの上にコップが1つあります。", tokens: ["There", "is", "one", "glass", "on", "the", "table"] },
-      { ja: "私は2本のペンを持っています。", tokens: ["I", "have", "two", "pens"] },
+      { ja: "私はくつを2足持っています。", tokens: ["I", "have", "two", "pairs", "of", "shoes"] },
       { ja: "その木にはたくさんの葉があります。", tokens: ["There", "are", "many", "leaves", "on", "the", "tree"] },
       { ja: "あなたはじゃがいもが好きですか。", tokens: ["Do", "you", "like", "potatoes"] },
       { ja: "箱の中にねずみがいます。", tokens: ["There", "is", "a", "mouse", "in", "the", "box"] },
@@ -1358,7 +1358,7 @@ const VOLUME_UP_UNITS = {
     words: [
       { en: "ride", ja: "乗る" }, { en: "skate", ja: "スケートをする" }, { en: "lift", ja: "持ち上げる" }, { en: "solve", ja: "解く" },
       { en: "skateboard", ja: "スケートボード" }, { en: "puzzle", ja: "パズル" }, { en: "robot", ja: "ロボット" }, { en: "camera", ja: "カメラ" },
-      { en: "far", ja: "遠くに" }, { en: "quickly", ja: "速く" },
+      { en: "far", ja: "遠くに" }, { en: "quickly", ja: "すばやく" },
     ],
     sentences: [
       { ja: "私は自転車に乗ることができます。", tokens: ["I", "can", "ride", "a", "bike"] },
@@ -1371,8 +1371,8 @@ const VOLUME_UP_UNITS = {
   u6: {
     words: [
       { en: "usually", ja: "たいてい" }, { en: "always", ja: "いつも" }, { en: "sometimes", ja: "ときどき" }, { en: "never", ja: "決して〜ない" },
-      { en: "often", ja: "しばしば" }, { en: "gets", ja: "手に入れる・着く" }, { en: "walks", ja: "歩く" }, { en: "tries", ja: "試す" },
-      { en: "finishes", ja: "終える" }, { en: "enjoys", ja: "楽しむ" },
+      { en: "often", ja: "しばしば" }, { en: "gets", ja: "手に入れる・着く（三単現）" }, { en: "walks", ja: "歩く（三単現）" }, { en: "tries", ja: "試す（三単現）" },
+      { en: "finishes", ja: "終える（三単現）" }, { en: "enjoys", ja: "楽しむ（三単現）" },
     ],
     sentences: [
       { ja: "彼はたいてい歩いて学校へ行きます。", tokens: ["He", "usually", "walks", "to", "school"] },
@@ -1384,8 +1384,8 @@ const VOLUME_UP_UNITS = {
   },
   u7: {
     words: [
-      { en: "doing", ja: "している" }, { en: "coming", ja: "来ている" }, { en: "getting", ja: "得ている・着いている" }, { en: "riding", ja: "乗っている" },
-      { en: "practicing", ja: "練習している" }, { en: "laughing", ja: "笑っている" }, { en: "looking", ja: "見ている" }, { en: "opening", ja: "開けている" },
+      { en: "doing", ja: "（宿題などを）している" }, { en: "coming", ja: "来ている" }, { en: "getting", ja: "得ている・着いている" }, { en: "riding", ja: "乗っている" },
+      { en: "practicing", ja: "練習している" }, { en: "laughing", ja: "笑っている" }, { en: "looking", ja: "（目を向けて）見ている" }, { en: "opening", ja: "開けている" },
       { en: "closing", ja: "閉めている" }, { en: "raining", ja: "雨が降っている" },
     ],
     sentences: [
@@ -1426,14 +1426,14 @@ const VOLUME_UP_UNITS = {
   },
   u10: {
     words: [
-      { en: "across", ja: "〜を横切って" }, { en: "around", ja: "〜の周りに" }, { en: "above", ja: "〜の上に" }, { en: "below", ja: "〜の下に" },
-      { en: "inside", ja: "〜の中に" }, { en: "opposite", ja: "向かい側に" }, { en: "corner", ja: "角" }, { en: "floor", ja: "床・階" },
+      { en: "across", ja: "〜を横切って" }, { en: "around", ja: "〜の周りに" }, { en: "above", ja: "〜より上に" }, { en: "below", ja: "〜より下に" },
+      { en: "inside", ja: "〜の内側に" }, { en: "opposite", ja: "向かい側に" }, { en: "corner", ja: "角" }, { en: "floor", ja: "床・階" },
       { en: "building", ja: "建物" }, { en: "bridge", ja: "橋" },
     ],
     sentences: [
       { ja: "銀行は駅の向かい側にあります。", tokens: ["The", "bank", "is", "opposite", "the", "station"] },
       { ja: "川の上に橋があります。", tokens: ["There", "is", "a", "bridge", "over", "the", "river"] },
-      { ja: "猫はテーブルの下にいます。", tokens: ["The", "cat", "is", "below", "the", "table"] },
+      { ja: "絵は時計より下にあります。", tokens: ["The", "picture", "is", "below", "the", "clock"] },
       { ja: "私の部屋は2階にあります。", tokens: ["My", "room", "is", "on", "the", "second", "floor"] },
       { ja: "その公園の周りに木があります。", tokens: ["There", "are", "trees", "around", "the", "park"] },
     ],
@@ -1525,5 +1525,320 @@ const VOLUME_UP_UNITS = {
 };
 UNITS.forEach((u) => {
   const more = VOLUME_UP_UNITS[u.id];
+  if (more) { u.words.push(...more.words); u.sentences.push(...more.sentences); }
+});
+
+// ============================================================
+//  追加ドリル第3弾（2026-11）：各単元 +10語・+10文
+//  これも末尾にpush（保存ずみの復習カードの番号をずらさないため）。
+// ============================================================
+const VOLUME_UP_UNITS_3 = {
+  u1: {
+    words: [
+      { en: "hello", ja: "こんにちは" }, { en: "goodbye", ja: "さようなら" }, { en: "sorry", ja: "ごめんなさい・すまなく思って" }, { en: "yes", ja: "はい" },
+      { en: "no", ja: "いいえ" }, { en: "also", ja: "〜もまた" }, { en: "too", ja: "〜も（文の終わりで）" }, { en: "really", ja: "本当に" },
+      { en: "Mr.", ja: "〜さん・〜先生（男性）" }, { en: "Ms.", ja: "〜さん・〜先生（女性）" },
+    ],
+    sentences: [
+      { ja: "あなたは疲れていますか。", tokens: ["Are", "you", "tired"] },
+      { ja: "私は東京の出身ではありません。", tokens: ["I", "am", "not", "from", "Tokyo"] },
+      { ja: "私たちはクラスメートです。", tokens: ["We", "are", "classmates"] },
+      { ja: "彼らは私の友達です。", tokens: ["They", "are", "my", "friends"] },
+      { ja: "私もうれしいです。", tokens: ["I", "am", "happy", "too"] },
+      { ja: "私は本当にうれしいです。", tokens: ["I", "am", "really", "happy"] },
+      { ja: "あなたはテニス部のメンバーですか。", tokens: ["Are", "you", "a", "member", "of", "the", "tennis", "club"] },
+      { ja: "彼は私の兄ではありません。", tokens: ["He", "is", "not", "my", "brother"] },
+      { ja: "それは私のかばんです。", tokens: ["It", "is", "my", "bag"] },
+      { ja: "これはあなたのペンですか。", tokens: ["Is", "this", "your", "pen"] },
+    ],
+  },
+  u2: {
+    words: [
+      { en: "sleep", ja: "眠る" }, { en: "think", ja: "思う・考える" }, { en: "wear", ja: "身につけている・着る" }, { en: "sell", ja: "売る" },
+      { en: "forget", ja: "忘れる" }, { en: "understand", ja: "理解する" }, { en: "show", ja: "見せる" }, { en: "call", ja: "電話する・呼ぶ" },
+      { en: "grow", ja: "育てる" }, { en: "cut", ja: "切る" },
+    ],
+    sentences: [
+      { ja: "私は8時間眠ります。", tokens: ["I", "sleep", "for", "eight", "hours"] },
+      { ja: "私はそう思います。", tokens: ["I", "think", "so"] },
+      { ja: "私たちは制服を着ます。", tokens: ["We", "wear", "uniforms"] },
+      { ja: "彼らはくだものを売ります。", tokens: ["They", "sell", "fruit"] },
+      { ja: "あなたは英語がわかりますか。", tokens: ["Do", "you", "understand", "English"] },
+      { ja: "私は彼の名前を知りません。", tokens: ["I", "do", "not", "know", "his", "name"] },
+      { ja: "私たちはトマトを育てます。", tokens: ["We", "grow", "tomatoes"] },
+      { ja: "私は毎週日曜日に祖母に電話します。", tokens: ["I", "call", "my", "grandmother", "every", "Sunday"] },
+      { ja: "私はケーキを切ります。", tokens: ["I", "cut", "the", "cake"] },
+      { ja: "彼らは肉を食べません。", tokens: ["They", "do", "not", "eat", "meat"] },
+    ],
+  },
+  u3: {
+    words: [
+      { en: "shoes", ja: "くつ" }, { en: "dish", ja: "皿" }, { en: "knife", ja: "ナイフ" }, { en: "knives", ja: "ナイフ（複数）" },
+      { en: "sheep", ja: "羊（1匹でも複数でも同じ形）" }, { en: "tooth", ja: "歯" }, { en: "teeth", ja: "歯（複数）" }, { en: "foot", ja: "足" },
+      { en: "feet", ja: "足（複数）" }, { en: "candy", ja: "キャンディー" },
+    ],
+    sentences: [
+      { ja: "私はお皿を洗います。", tokens: ["I", "wash", "the", "dishes"] },
+      { ja: "箱の中にナイフが3本あります。", tokens: ["There", "are", "three", "knives", "in", "the", "box"] },
+      { ja: "私はたくさんの羊が見えます。", tokens: ["I", "see", "many", "sheep"] },
+      { ja: "私は毎朝歯をみがきます。", tokens: ["I", "brush", "my", "teeth", "every", "morning"] },
+      { ja: "私の足は冷たいです。", tokens: ["My", "feet", "are", "cold"] },
+      { ja: "あなたはクッキーを持っていますか。", tokens: ["Do", "you", "have", "any", "cookies"] },
+      { ja: "私はえんぴつを10本持っています。", tokens: ["I", "have", "ten", "pencils"] },
+      { ja: "公園には5人の子どもたちがいます。", tokens: ["There", "are", "five", "children", "in", "the", "park"] },
+      { ja: "彼女はねこを2匹飼っています。", tokens: ["She", "has", "two", "cats"] },
+      { ja: "あなたは犬を何匹飼っていますか。", tokens: ["How", "many", "dogs", "do", "you", "have"] },
+    ],
+  },
+  u4: {
+    words: [
+      { en: "story", ja: "物語" }, { en: "song", ja: "歌" }, { en: "picture", ja: "写真・絵" }, { en: "weather", ja: "天気" },
+      { en: "word", ja: "単語・言葉" }, { en: "language", ja: "言語" }, { en: "trip", ja: "旅行" }, { en: "dream", ja: "夢" },
+      { en: "price", ja: "値段" }, { en: "event", ja: "行事・できごと" },
+    ],
+    sentences: [
+      { ja: "今日の天気はどうですか。", tokens: ["How", "is", "the", "weather", "today"] },
+      { ja: "あなたの夢は何ですか。", tokens: ["What", "is", "your", "dream"] },
+      { ja: "あなたのお気に入りの歌手はだれですか。", tokens: ["Who", "is", "your", "favorite", "singer"] },
+      { ja: "あなたはどこに住んでいますか。", tokens: ["Where", "do", "you", "live"] },
+      { ja: "あなたはなぜ英語が好きなのですか。", tokens: ["Why", "do", "you", "like", "English"] },
+      { ja: "どちらがあなたのかばんですか。", tokens: ["Which", "is", "your", "bag"] },
+      { ja: "あなたはどんな歌が好きですか。", tokens: ["What", "song", "do", "you", "like"] },
+      { ja: "あなたはいつテニスをしますか。", tokens: ["When", "do", "you", "play", "tennis"] },
+      { ja: "あなたはどうやって学校へ行きますか。", tokens: ["How", "do", "you", "go", "to", "school"] },
+      { ja: "あなたは何語を話しますか。", tokens: ["What", "language", "do", "you", "speak"] },
+    ],
+  },
+  u5: {
+    words: [
+      { en: "hear", ja: "聞こえる" }, { en: "build", ja: "建てる" }, { en: "fix", ja: "直す" }, { en: "win", ja: "勝つ" },
+      { en: "move", ja: "動かす" }, { en: "surf", ja: "サーフィンをする" }, { en: "cannot", ja: "〜できない" }, { en: "easily", ja: "かんたんに" },
+      { en: "loudly", ja: "大きな声で" }, { en: "violin", ja: "バイオリン" },
+    ],
+    sentences: [
+      { ja: "私の声が聞こえますか。", tokens: ["Can", "you", "hear", "me"] },
+      { ja: "私は速く泳げません。", tokens: ["I", "cannot", "swim", "fast"] },
+      { ja: "彼女はバイオリンを弾けます。", tokens: ["She", "can", "play", "the", "violin"] },
+      { ja: "彼らは家を建てることができます。", tokens: ["They", "can", "build", "a", "house"] },
+      { ja: "私の父は車を直すことができます。", tokens: ["My", "father", "can", "fix", "the", "car"] },
+      { ja: "彼女は上手に歌えますか。", tokens: ["Can", "she", "sing", "well"] },
+      { ja: "私たちは試合に勝つことができます。", tokens: ["We", "can", "win", "the", "game"] },
+      { ja: "彼はスキーができません。", tokens: ["He", "cannot", "ski"] },
+      { ja: "あなたはこの箱を動かせますか。", tokens: ["Can", "you", "move", "this", "box"] },
+      { ja: "私はサーフィンができます。", tokens: ["I", "can", "surf"] },
+    ],
+  },
+  u6: {
+    words: [
+      { en: "makes", ja: "作る（三単現）" }, { en: "uses", ja: "使う（三単現）" }, { en: "drinks", ja: "飲む（三単現）" }, { en: "writes", ja: "書く（三単現）" },
+      { en: "knows", ja: "知っている（三単現）" }, { en: "wants", ja: "ほしい（三単現）" }, { en: "helps", ja: "手伝う（三単現）" }, { en: "cleans", ja: "そうじする（三単現）" },
+      { en: "washes", ja: "洗う（三単現）" }, { en: "doesn't", ja: "〜しない（三単現の否定）" },
+    ],
+    sentences: [
+      { ja: "彼女は毎週日曜日にケーキを作ります。", tokens: ["She", "makes", "a", "cake", "every", "Sunday"] },
+      { ja: "私の兄はコンピューターを使います。", tokens: ["My", "brother", "uses", "a", "computer"] },
+      { ja: "彼は毎朝牛乳を飲みます。", tokens: ["He", "drinks", "milk", "every", "morning"] },
+      { ja: "彼はあなたの名前を知っていますか。", tokens: ["Does", "he", "know", "your", "name"] },
+      { ja: "彼女はコーヒーが好きではありません。", tokens: ["She", "doesn't", "like", "coffee"] },
+      { ja: "私の姉は新しいかばんをほしがっています。", tokens: ["My", "sister", "wants", "a", "new", "bag"] },
+      { ja: "ケンはお母さんを手伝います。", tokens: ["Ken", "helps", "his", "mother"] },
+      { ja: "あなたのお父さんは料理をしますか。", tokens: ["Does", "your", "father", "cook"] },
+      { ja: "彼は毎週日曜日に車を洗います。", tokens: ["He", "washes", "his", "car", "on", "Sundays"] },
+      { ja: "トムは友達に手紙を書きます。", tokens: ["Tom", "writes", "a", "letter", "to", "his", "friend"] },
+    ],
+  },
+  u7: {
+    words: [
+      { en: "drawing", ja: "（絵を）描いている" }, { en: "flying", ja: "飛んでいる" }, { en: "jumping", ja: "跳んでいる" }, { en: "crying", ja: "泣いている" },
+      { en: "smiling", ja: "ほほえんでいる" }, { en: "snowing", ja: "雪が降っている" }, { en: "carrying", ja: "運んでいる" }, { en: "buying", ja: "買っている" },
+      { en: "taking", ja: "（写真を）撮っている・取っている" }, { en: "skating", ja: "スケートをしている" },
+    ],
+    sentences: [
+      { ja: "彼女は絵を描いています。", tokens: ["She", "is", "drawing", "a", "picture"] },
+      { ja: "鳥が空を飛んでいます。", tokens: ["Birds", "are", "flying", "in", "the", "sky"] },
+      { ja: "赤ちゃんが泣いています。", tokens: ["The", "baby", "is", "crying"] },
+      { ja: "雪が降っています。", tokens: ["It", "is", "snowing"] },
+      { ja: "彼は写真を撮っていますか。", tokens: ["Is", "he", "taking", "a", "picture"] },
+      { ja: "あなたは今何をしていますか。", tokens: ["What", "are", "you", "doing", "now"] },
+      { ja: "彼らはスケートをしていません。", tokens: ["They", "are", "not", "skating"] },
+      { ja: "私の母は野菜を買っています。", tokens: ["My", "mother", "is", "buying", "some", "vegetables"] },
+      { ja: "彼は大きな箱を運んでいます。", tokens: ["He", "is", "carrying", "a", "big", "box"] },
+      { ja: "子どもたちが跳んでいます。", tokens: ["The", "children", "are", "jumping"] },
+    ],
+  },
+  u8: {
+    words: [
+      { en: "wrote", ja: "書いた" }, { en: "ran", ja: "走った" }, { en: "swam", ja: "泳いだ" }, { en: "sang", ja: "歌った" },
+      { en: "drank", ja: "飲んだ" }, { en: "slept", ja: "眠った" }, { en: "met", ja: "会った" }, { en: "cooked", ja: "料理した" },
+      { en: "stayed", ja: "滞在した・いた" }, { en: "ago", ja: "〜前に" },
+    ],
+    sentences: [
+      { ja: "私は友達に手紙を書きました。", tokens: ["I", "wrote", "a", "letter", "to", "my", "friend"] },
+      { ja: "彼は昨日公園で走りました。", tokens: ["He", "ran", "in", "the", "park", "yesterday"] },
+      { ja: "私たちは去年の夏に海で泳ぎました。", tokens: ["We", "swam", "in", "the", "sea", "last", "summer"] },
+      { ja: "彼らはいっしょに歌を歌いました。", tokens: ["They", "sang", "a", "song", "together"] },
+      { ja: "私は2日前にケンに会いました。", tokens: ["I", "met", "Ken", "two", "days", "ago"] },
+      { ja: "あなたは昨夜よく眠れましたか。", tokens: ["Did", "you", "sleep", "well", "last", "night"] },
+      { ja: "私の父は夕食を作りました。", tokens: ["My", "father", "cooked", "dinner"] },
+      { ja: "私は昨日家にいました。", tokens: ["I", "stayed", "home", "yesterday"] },
+      { ja: "彼女はコーヒーを飲みませんでした。", tokens: ["She", "did", "not", "drink", "coffee"] },
+      { ja: "あなたは昨日忙しかったですか。", tokens: ["Were", "you", "busy", "yesterday"] },
+    ],
+  },
+  u9: {
+    words: [
+      { en: "again", ja: "もう一度" }, { en: "repeat", ja: "くり返す" }, { en: "check", ja: "確かめる" }, { en: "enter", ja: "入る" },
+      { en: "push", ja: "押す" }, { en: "pull", ja: "引っぱる" }, { en: "worry", ja: "心配する" }, { en: "shout", ja: "さけぶ" },
+      { en: "relax", ja: "くつろぐ" }, { en: "hand", ja: "手" },
+    ],
+    sentences: [
+      { ja: "もう一度言ってください。", tokens: ["Please", "say", "it", "again"] },
+      { ja: "私のあとについてくり返してください。", tokens: ["Please", "repeat", "after", "me"] },
+      { ja: "答えを確かめなさい。", tokens: ["Check", "your", "answers"] },
+      { ja: "どうぞ入ってください。", tokens: ["Please", "come", "in"] },
+      { ja: "ボタンを押して。", tokens: ["Push", "the", "button"] },
+      { ja: "心配しないで。", tokens: ["Don't", "worry"] },
+      { ja: "図書館でさけんではいけません。", tokens: ["Don't", "shout", "in", "the", "library"] },
+      { ja: "少しくつろごう。", tokens: ["Let's", "relax", "a", "little"] },
+      { ja: "昼食の前に手を洗いなさい。", tokens: ["Wash", "your", "hands", "before", "lunch"] },
+      { ja: "公園に行こう。", tokens: ["Let's", "go", "to", "the", "park"] },
+    ],
+  },
+  u10: {
+    words: [
+      { en: "next", ja: "となりの・次の" }, { en: "over", ja: "〜の真上に・〜をこえて" }, { en: "into", ja: "〜の中へ" }, { en: "along", ja: "〜に沿って" },
+      { en: "store", ja: "店" }, { en: "bank", ja: "銀行" }, { en: "street", ja: "通り" }, { en: "post office", ja: "郵便局" },
+      { en: "museum", ja: "博物館・美術館" }, { en: "zoo", ja: "動物園" },
+    ],
+    sentences: [
+      { ja: "銀行は郵便局のとなりにあります。", tokens: ["The", "bank", "is", "next", "to", "the", "post", "office"] },
+      { ja: "公園の近くに博物館があります。", tokens: ["There", "is", "a", "museum", "near", "the", "park"] },
+      { ja: "犬が川に沿って走っています。", tokens: ["A", "dog", "is", "running", "along", "the", "river"] },
+      { ja: "あなたの市には動物園がありますか。", tokens: ["Is", "there", "a", "zoo", "in", "your", "city"] },
+      { ja: "この通りにはたくさんの店があります。", tokens: ["There", "are", "many", "stores", "on", "this", "street"] },
+      { ja: "私の学校は駅と公園の間にあります。", tokens: ["My", "school", "is", "between", "the", "station", "and", "the", "park"] },
+      { ja: "ボールはドアのうしろにあります。", tokens: ["The", "ball", "is", "behind", "the", "door"] },
+      { ja: "郵便局はどこですか。", tokens: ["Where", "is", "the", "post", "office"] },
+      { ja: "私の家の近くに銀行はありません。", tokens: ["There", "is", "not", "a", "bank", "near", "my", "house"] },
+      { ja: "私のかばんはいすの上にあります。", tokens: ["My", "bag", "is", "on", "the", "chair"] },
+    ],
+  },
+  u11: {
+    words: [
+      { en: "tomorrow", ja: "明日" }, { en: "tonight", ja: "今夜" }, { en: "noon", ja: "正午" }, { en: "festival", ja: "祭り" },
+      { en: "Christmas", ja: "クリスマス" }, { en: "New Year", ja: "新年" }, { en: "hour", ja: "1時間" }, { en: "minute", ja: "分" },
+      { en: "weekday", ja: "平日" }, { en: "rainy", ja: "雨の" },
+    ],
+    sentences: [
+      { ja: "明日は土曜日です。", tokens: ["Tomorrow", "is", "Saturday"] },
+      { ja: "私は明日テストがあります。", tokens: ["I", "have", "a", "test", "tomorrow"] },
+      { ja: "8月にお祭りがあります。", tokens: ["We", "have", "a", "festival", "in", "August"] },
+      { ja: "クリスマスは12月にあります。", tokens: ["Christmas", "is", "in", "December"] },
+      { ja: "私は正午に昼食を食べます。", tokens: ["I", "eat", "lunch", "at", "noon"] },
+      { ja: "今日は雨です。", tokens: ["It", "is", "rainy", "today"] },
+      { ja: "あなたの夏休みはいつですか。", tokens: ["When", "is", "your", "summer", "vacation"] },
+      { ja: "私は1時間英語を勉強します。", tokens: ["I", "study", "English", "for", "an", "hour"] },
+      { ja: "私たちは日曜日には学校に行きません。", tokens: ["We", "do", "not", "go", "to", "school", "on", "Sundays"] },
+      { ja: "あなたは冬が好きですか。", tokens: ["Do", "you", "like", "winter"] },
+    ],
+  },
+  u12: {
+    words: [
+      { en: "fourth", ja: "4番目の" }, { en: "fifth", ja: "5番目の" }, { en: "zero", ja: "0" }, { en: "plus", ja: "たす" },
+      { en: "dollar", ja: "ドル" }, { en: "yen", ja: "円" }, { en: "count", ja: "数える" }, { en: "dozen", ja: "1ダース（12個）" },
+      { en: "meter", ja: "メートル" }, { en: "total", ja: "合計" },
+    ],
+    sentences: [
+      { ja: "あなたのお兄さんは何歳ですか。", tokens: ["How", "old", "is", "your", "brother"] },
+      { ja: "それは500円です。", tokens: ["It", "is", "five", "hundred", "yen"] },
+      { ja: "私の祖父は70歳です。", tokens: ["My", "grandfather", "is", "seventy", "years", "old"] },
+      { ja: "3たす4は7です。", tokens: ["Three", "plus", "four", "is", "seven"] },
+      { ja: "私は6時に起きます。", tokens: ["I", "get", "up", "at", "six"] },
+      { ja: "私の部屋は4階にあります。", tokens: ["My", "room", "is", "on", "the", "fourth", "floor"] },
+      { ja: "10まで数えよう。", tokens: ["Let's", "count", "to", "ten"] },
+      { ja: "私は卵を1ダース持っています。", tokens: ["I", "have", "a", "dozen", "eggs"] },
+      { ja: "その木は高さ10メートルです。", tokens: ["The", "tree", "is", "ten", "meters", "tall"] },
+      { ja: "1年は12か月あります。", tokens: ["There", "are", "twelve", "months", "in", "a", "year"] },
+    ],
+  },
+  u13: {
+    words: [
+      { en: "wife", ja: "妻" }, { en: "husband", ja: "夫" }, { en: "twin", ja: "ふたご（の1人）" }, { en: "police officer", ja: "警察官" },
+      { en: "firefighter", ja: "消防士" }, { en: "scientist", ja: "科学者" }, { en: "writer", ja: "作家" }, { en: "dancer", ja: "ダンサー" },
+      { en: "teammate", ja: "チームメート" }, { en: "adult", ja: "大人" },
+    ],
+    sentences: [
+      { ja: "私のおばは警察官です。", tokens: ["My", "aunt", "is", "a", "police", "officer"] },
+      { ja: "彼のお父さんは消防士です。", tokens: ["His", "father", "is", "a", "firefighter"] },
+      { ja: "彼らはふたごです。", tokens: ["They", "are", "twins"] },
+      { ja: "あなたのお母さんは作家ですか。", tokens: ["Is", "your", "mother", "a", "writer"] },
+      { ja: "彼女は有名なダンサーです。", tokens: ["She", "is", "a", "famous", "dancer"] },
+      { ja: "ケンは私のチームメートです。", tokens: ["Ken", "is", "my", "teammate"] },
+      { ja: "私の祖父母は私たちといっしょに住んでいます。", tokens: ["My", "grandparents", "live", "with", "us"] },
+      { ja: "私のおじとその妻は京都に住んでいます。", tokens: ["My", "uncle", "and", "his", "wife", "live", "in", "Kyoto"] },
+      { ja: "あの人たちはあなたのクラスメートですか。", tokens: ["Are", "those", "people", "your", "classmates"] },
+      { ja: "私の姉は科学者です。", tokens: ["My", "sister", "is", "a", "scientist"] },
+    ],
+  },
+  u14: {
+    words: [
+      { en: "beef", ja: "牛肉" }, { en: "pork", ja: "豚肉" }, { en: "chicken", ja: "とり肉" }, { en: "carrot", ja: "にんじん" },
+      { en: "onion", ja: "玉ねぎ" }, { en: "peach", ja: "もも" }, { en: "melon", ja: "メロン" }, { en: "honey", ja: "はちみつ" },
+      { en: "yogurt", ja: "ヨーグルト" }, { en: "snack", ja: "おやつ・軽食" },
+    ],
+    sentences: [
+      { ja: "私はとり肉が好きです。", tokens: ["I", "like", "chicken"] },
+      { ja: "私の弟はにんじんを食べません。", tokens: ["My", "brother", "does", "not", "eat", "carrots"] },
+      { ja: "あなたはメロンがほしいですか。", tokens: ["Do", "you", "want", "some", "melon"] },
+      { ja: "私は紅茶にはちみつを入れます。", tokens: ["I", "put", "honey", "in", "my", "tea"] },
+      { ja: "彼女は朝食にヨーグルトを食べます。", tokens: ["She", "eats", "yogurt", "for", "breakfast"] },
+      { ja: "あなたの好きなくだものは何ですか。", tokens: ["What", "is", "your", "favorite", "fruit"] },
+      { ja: "私は牛乳が1杯ほしいです。", tokens: ["I", "want", "a", "glass", "of", "milk"] },
+      { ja: "これらのももはあまいです。", tokens: ["These", "peaches", "are", "sweet"] },
+      { ja: "私の母は玉ねぎを切っています。", tokens: ["My", "mother", "is", "cutting", "onions"] },
+      { ja: "私たちは豚肉を使ってカレーを作ります。", tokens: ["We", "make", "curry", "with", "pork"] },
+    ],
+  },
+  u15: {
+    words: [
+      { en: "angry", ja: "おこった" }, { en: "sick", ja: "病気の" }, { en: "free", ja: "ひまな" }, { en: "full", ja: "いっぱいの・満腹の" },
+      { en: "warm", ja: "暖かい" }, { en: "cool", ja: "すずしい・かっこいい" }, { en: "heavy", ja: "重い" }, { en: "light", ja: "軽い" },
+      { en: "slow", ja: "（速さが）おそい" }, { en: "lucky", ja: "運がいい" },
+    ],
+    sentences: [
+      { ja: "この箱は重いです。", tokens: ["This", "box", "is", "heavy"] },
+      { ja: "私はおこっていません。", tokens: ["I", "am", "not", "angry"] },
+      { ja: "あなたは明日ひまですか。", tokens: ["Are", "you", "free", "tomorrow"] },
+      { ja: "彼は今日、病気です。", tokens: ["He", "is", "sick", "today"] },
+      { ja: "私はおなかがいっぱいです。", tokens: ["I", "am", "full"] },
+      { ja: "秋はすずしいです。", tokens: ["It", "is", "cool", "in", "fall"] },
+      { ja: "このかばんはとても軽いです。", tokens: ["This", "bag", "is", "very", "light"] },
+      { ja: "私のコンピューターはおそいです。", tokens: ["My", "computer", "is", "slow"] },
+      { ja: "あなたは運がいいですね。", tokens: ["You", "are", "lucky"] },
+      { ja: "その部屋は暖かいですか。", tokens: ["Is", "the", "room", "warm"] },
+    ],
+  },
+  u16: {
+    words: [
+      { en: "art", ja: "美術" }, { en: "social studies", ja: "社会科" }, { en: "test", ja: "テスト" }, { en: "locker", ja: "ロッカー" },
+      { en: "principal", ja: "校長先生" }, { en: "pool", ja: "プール" }, { en: "sports day", ja: "運動会" }, { en: "bell", ja: "ベル・チャイム" },
+      { en: "speech", ja: "スピーチ" }, { en: "school trip", ja: "修学旅行" },
+    ],
+    sentences: [
+      { ja: "私は今日英語のテストがあります。", tokens: ["I", "have", "an", "English", "test", "today"] },
+      { ja: "私の好きな教科は美術です。", tokens: ["My", "favorite", "subject", "is", "art"] },
+      { ja: "私たちの学校には大きなプールがあります。", tokens: ["Our", "school", "has", "a", "big", "pool"] },
+      { ja: "あなたは社会科が好きですか。", tokens: ["Do", "you", "like", "social", "studies"] },
+      { ja: "ベルが鳴っています。", tokens: ["The", "bell", "is", "ringing"] },
+      { ja: "かばんをロッカーに入れなさい。", tokens: ["Put", "your", "bag", "in", "the", "locker"] },
+      { ja: "私たちの運動会は10月です。", tokens: ["Our", "sports", "day", "is", "in", "October"] },
+      { ja: "彼女は私たちの校長先生です。", tokens: ["She", "is", "our", "principal"] },
+      { ja: "スピーチの練習をしよう。", tokens: ["Let's", "practice", "our", "speech"] },
+      { ja: "音楽室はどこですか。", tokens: ["Where", "is", "the", "music", "room"] },
+    ],
+  },
+};
+UNITS.forEach((u) => {
+  const more = VOLUME_UP_UNITS_3[u.id];
   if (more) { u.words.push(...more.words); u.sentences.push(...more.sentences); }
 });
